@@ -1287,6 +1287,23 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-2 sm:max-w-xl">
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <p className="text-xs font-semibold text-blue-600">Productos</p>
+            <p className="mt-1 text-sm font-bold text-blue-950">
+              {products.length} usados · {plan.products === null ? "Ilimitados" : `${Math.max(0, plan.products - products.length)} disponibles`}
+            </p>
+            {plan.products !== null && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, products.length / plan.products * 100)}%` }} /></div>}
+          </div>
+          <div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
+            <p className="text-xs font-semibold text-violet-600">Categorías</p>
+            <p className="mt-1 text-sm font-bold text-violet-950">
+              {categories.length} usadas · {plan.categories === null ? "Ilimitadas" : `${Math.max(0, plan.categories - categories.length)} disponibles`}
+            </p>
+            {plan.categories !== null && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-violet-100"><div className="h-full rounded-full bg-violet-600" style={{ width: `${Math.min(100, categories.length / plan.categories * 100)}%` }} /></div>}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
           <button
             onClick={() => plan.excel ? excelInputRef.current?.click() : window.alert("La importación por Excel está disponible en Premium.")}

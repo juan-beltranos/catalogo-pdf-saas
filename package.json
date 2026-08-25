@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "configure:r2-cors": "node scripts/configure-r2-cors.mjs",
     "test:crud": "node scripts/test-products-crud.mjs"
+    ,"test:plans": "node scripts/test-plan-limits.mjs",
+    "test:integration": "node scripts/test-integration.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1117.0",

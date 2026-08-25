@@ -24,7 +24,7 @@ Aplicación Next.js para administrar productos y generar catálogos PDF. Supabas
 
 ## Planes y registro
 
-El registro solo se habilita al abrir un enlace con un token válido. El servidor asigna el plan en `app_metadata`; el navegador no puede elegirlo ni modificarlo. Básico admite 20 productos y una categoría, Pro admite 10 categorías y 200 productos con imagen, y Premium no tiene límites. La segunda migración refuerza estos límites directamente en PostgreSQL.
+El registro solo se habilita al abrir un enlace con un token válido. El servidor asigna el plan en `app_metadata`; el navegador no puede elegirlo ni modificarlo. Básico admite 20 productos y una categoría, Pro admite 200 productos y 10 categorías, y Premium no tiene límites. Las migraciones refuerzan estos límites directamente en PostgreSQL.
 
 Para cambiar el plan de un cliente después de la compra, edita la columna `plan` de su fila en `public.businesses` desde el Table Editor de Supabase. Los valores válidos son `basic`, `pro` y `premium`. El cambio se refleja cuando el cliente recarga la aplicación; las actualizaciones hechas desde una sesión normal no pueden modificar ese campo.
 

@@ -14,7 +14,7 @@ export interface PlanLimits {
 
 export const PLANS: Record<PlanId, PlanLimits> = {
   basic: { id: "basic", name: "Básico", products: 20, categories: 1, images: 20, customization: false, excel: false, premiumProductTools: false, advancedLayouts: false },
-  pro: { id: "pro", name: "Pro", products: null, categories: 10, images: 200, customization: true, excel: false, premiumProductTools: false, advancedLayouts: false },
+  pro: { id: "pro", name: "Pro", products: 200, categories: 10, images: 200, customization: true, excel: false, premiumProductTools: false, advancedLayouts: false },
   premium: { id: "premium", name: "Premium", products: null, categories: null, images: null, customization: true, excel: true, premiumProductTools: true, advancedLayouts: true },
 };
 
