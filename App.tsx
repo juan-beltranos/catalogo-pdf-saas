@@ -410,10 +410,10 @@ const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
   );
 };
 
-export const App: React.FC = () => {
+export const App: React.FC<{ registrationToken?: string }> = ({ registrationToken = "" }) => {
   const { user, loading, passwordRecovery, finishPasswordRecovery } = useAuth();
   if (!isSupabaseConfigured) return <ConfigurationRequired />;
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>;
   if (passwordRecovery) return <PasswordRecovery onDone={finishPasswordRecovery} />;
-  return user ? <CatalogApp user={user} /> : <AuthScreen />;
+  return user ? <CatalogApp user={user} /> : <AuthScreen initialRegistrationToken={registrationToken} />;
 };

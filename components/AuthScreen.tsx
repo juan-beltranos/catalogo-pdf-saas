@@ -5,30 +5,30 @@ import { getPlan, PlanId } from "../lib/plans";
 
 type Mode = "login" | "register" | "forgot";
 
-export const AuthScreen: React.FC = () => {
-  const [mode, setMode] = useState<Mode>("login");
+export const AuthScreen: React.FC<{ initialRegistrationToken?: string }> = ({ initialRegistrationToken = "" }) => {
+  const [mode, setMode] = useState<Mode>(initialRegistrationToken ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [registrationToken, setRegistrationToken] = useState("");
+  const [registrationToken, setRegistrationToken] = useState(initialRegistrationToken);
   const [purchasedPlan, setPurchasedPlan] = useState<PlanId | null>(null);
 
   React.useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("token")?.trim() || "";
+    const token = initialRegistrationToken || new URLSearchParams(window.location.search).get("token")?.trim() || "";
     if (!token) return;
+    setMode("register");
     setRegistrationToken(token);
     void fetch(`/api/auth/register?token=${encodeURIComponent(token)}`)
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "El enlace de compra no es válido.");
         setPurchasedPlan(result.plan);
-        setMode("register");
       })
       .catch((cause) => setError(cause instanceof Error ? cause.message : "El enlace de compra no es válido."));
-  }, []);
+  }, [initialRegistrationToken]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
