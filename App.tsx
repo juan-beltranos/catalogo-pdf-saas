@@ -18,6 +18,7 @@ import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import { Loader2, LogOut } from "lucide-react";
 import { PasswordRecovery } from "./components/PasswordRecovery";
 import { SidebarAccordion } from "./components/SidebarAccordion";
+import { WhatsAppSupportButton } from "./components/WhatsAppSupportButton";
 
 const FOOTER_BANNER_URL =
   "https://firebasestorage.googleapis.com/v0/b/sistema-catalogo-digitales.firebasestorage.app/o/exec-29aa84c2-2a46-4a37-a1d1-94359a2a98c1.png?alt=media&token=694801fa-6aaa-475b-be12-dc9b493fc10d";
@@ -406,14 +407,17 @@ const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
           watermarkLogo={storeInfo.logo}
         />
       )}
+      {viewMode !== "preview" && <WhatsAppSupportButton />}
     </div>
   );
 };
 
 export const App: React.FC<{ registrationToken?: string }> = ({ registrationToken = "" }) => {
   const { user, loading, passwordRecovery, finishPasswordRecovery } = useAuth();
-  if (!isSupabaseConfigured) return <ConfigurationRequired />;
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>;
-  if (passwordRecovery) return <PasswordRecovery onDone={finishPasswordRecovery} />;
-  return user ? <CatalogApp user={user} /> : <AuthScreen initialRegistrationToken={registrationToken} />;
+  if (!isSupabaseConfigured) return <><ConfigurationRequired /><WhatsAppSupportButton /></>;
+  if (loading) return <><div className="min-h-screen flex items-center justify-center bg-slate-950"><Loader2 className="h-8 w-8 animate-spin text-white" /></div><WhatsAppSupportButton /></>;
+  if (passwordRecovery) return <><PasswordRecovery onDone={finishPasswordRecovery} /><WhatsAppSupportButton /></>;
+  return user
+    ? <CatalogApp user={user} />
+    : <><AuthScreen initialRegistrationToken={registrationToken} /><WhatsAppSupportButton /></>;
 };
