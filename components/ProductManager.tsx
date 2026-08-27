@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  Loader2,
 } from "lucide-react";
 import { compressImage, formatCurrency } from "../constants";
 import { motion, AnimatePresence } from "framer-motion";
@@ -254,6 +255,8 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
   });
 
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = React.useRef(false);
   const editPreviewObjectUrlRef = React.useRef<string | null>(null);
   const formRef = React.useRef<HTMLDivElement>(null);
 
@@ -537,7 +540,12 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.price) return;
+    if (isSavingRef.current || !formData.name || !formData.price) return;
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+
+    try {
 
     if (!editingId && plan.products !== null && products.length >= plan.products) {
       window.alert(`Tu plan ${plan.name} admite hasta ${plan.products} productos.`); return;
@@ -647,6 +655,10 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     }
 
     resetForm();
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -654,7 +666,12 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     if (!file) return;
 
     try {
-      const base64 = await compressImage(file);
+      const base64 = await compressImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.8,
+        format: "image/webp",
+      });
       if (editPreviewObjectUrlRef.current) {
         URL.revokeObjectURL(editPreviewObjectUrlRef.current);
         editPreviewObjectUrlRef.current = null;
@@ -1964,12 +1981,19 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={handleSave}
-              disabled={!formData.name || !formData.price}
+              disabled={isSaving || !formData.name || !formData.price}
               className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
-              {isEditing ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-              {isEditing ? "Guardar Cambios" : "Crear Producto"}
+              {isSaving ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : isEditing ? (
+                <Check className="w-5 h-5" />
+              ) : (
+                <Plus className="w-5 h-5" />
+              )}
+              {isSaving ? "Guardando..." : isEditing ? "Guardar Cambios" : "Crear Producto"}
             </button>
           </motion.div>
         )}

@@ -201,7 +201,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
                   : "text-2xl md:text-4xl"
               } ${isClassic ? "font-serif tracking-[0.12em]" : ""} ${hasHeaderImage ? "text-white" : ""}`}
             >
-              {storeInfo.name || "Mi CatÃ¡logo"}
+              {storeInfo.name || "Mi Catálogo"}
             </h1>
           </div>
 
@@ -397,7 +397,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
         rel="noopener noreferrer"
         className={`${theme.card} product-pdf`}
         style={{ textDecoration: "none" }}
-        data-category={(product.category || "Sin categorÃ­a").trim()}
+        data-category={(product.category || "Sin categoría").trim()}
         data-pdf-link="product"
         data-product-id={product.id}
         data-product-name={product.name}
@@ -578,7 +578,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
             {orderedProducts.length === 0 && (
               <div className="py-32 text-center text-slate-300">
                 <p className="text-xl font-light italic">
-                  Tu catÃ¡logo cobra vida aquÃ­. Agrega productos para comenzar.
+                  Tu catálogo cobra vida aquí. Agrega productos para comenzar.
                 </p>
               </div>
             )}

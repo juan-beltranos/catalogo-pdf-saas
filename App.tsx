@@ -21,7 +21,7 @@ import { SidebarAccordion } from "./components/SidebarAccordion";
 import { WhatsAppSupportButton } from "./components/WhatsAppSupportButton";
 
 const FOOTER_BANNER_URL =
-  "https://firebasestorage.googleapis.com/v0/b/sistema-catalogo-digitales.firebasestorage.app/o/exec-29aa84c2-2a46-4a37-a1d1-94359a2a98c1.png?alt=media&token=694801fa-6aaa-475b-be12-dc9b493fc10d";
+  "https://firebasestorage.googleapis.com/v0/b/sistema-catalogo-digitales.firebasestorage.app/o/banner-catalogo-digital.jpg?alt=media&token=c874b38a-b8d3-457c-8b3e-50af5c97eae0";
 
 const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
   const {

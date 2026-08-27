@@ -21,7 +21,13 @@ export async function POST(request: NextRequest) {
     const existing = await admin.from("businesses").select("*").eq("owner_id", authData.user.id).maybeSingle();
     if (existing.error) throw existing.error;
     if (existing.data) return NextResponse.json({ business: existing.data });
-    const created = await admin.from("businesses").insert({ owner_id: authData.user.id }).select("*").single();
+    // This endpoint can be called more than once during the initial client
+    // mount. Upsert makes business creation atomic when requests overlap.
+    const created = await admin
+      .from("businesses")
+      .upsert({ owner_id: authData.user.id }, { onConflict: "owner_id" })
+      .select("*")
+      .single();
     if (created.error) throw created.error;
     return NextResponse.json({ business: created.data }, { status: 201 });
   } catch (cause: any) {
