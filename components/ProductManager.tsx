@@ -1351,7 +1351,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
             title="Eliminar definitivamente todos los productos y sus imágenes"
           >
             {isRemovingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            <span>{isRemovingAll ? "Eliminando..." : !allProductCount ? "Limpiar imágenes" : "Eliminar todos"}</span>
+            <span>{isRemovingAll ? "Eliminando..." : !allProductCount ? "Eliminar todos" : "Eliminar todos"}</span>
           </button>
 
           <button
