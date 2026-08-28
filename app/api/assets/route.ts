@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -45,6 +45,49 @@ export async function POST(request: NextRequest) {
       const objectKey = `${user.id}/${body.kind}/${crypto.randomUUID()}.${extensions[body.contentType]}`;
       const uploadUrl = await getSignedUrl(r2(), new PutObjectCommand({ Bucket: bucket, Key: objectKey, ContentType: body.contentType }), { expiresIn: 300 });
       return NextResponse.json({ key: objectKey, url: `${publicBaseUrl}/${objectKey}`, uploadUrl, expiresIn: 300 });
+    }
+
+    if (body.action === "delete-product-images") {
+      const client = r2();
+      const prefix = `${user.id}/product/`;
+      let continuationToken: string | undefined;
+      let count = 0;
+      do {
+        const listed = await client.send(new ListObjectsV2Command({
+          Bucket: bucket, Prefix: prefix, ContinuationToken: continuationToken,
+        }));
+        const objects = (listed.Contents || []).flatMap((object) => object.Key ? [{ Key: object.Key }] : []);
+        if (objects.length) {
+          const deleted = await client.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: objects, Quiet: true } }));
+          if (deleted.Errors?.length) throw new Error(`R2 no pudo borrar ${deleted.Errors.length} archivo(s).`);
+          count += objects.length;
+        }
+        continuationToken = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+      } while (continuationToken);
+      return NextResponse.json({ deleted: true, count });
+    }
+
+    if (body.action === "delete-many") {
+      if (!Array.isArray(body.keys) || body.keys.length > 1000) {
+        return NextResponse.json({ error: "Lista de archivos inválida" }, { status: 400 });
+      }
+      const keys = [...new Set(body.keys as unknown[])];
+      if (keys.some((key) => typeof key !== "string" || key.includes(".."))) {
+        return NextResponse.json({ error: "Operación no autorizada" }, { status: 403 });
+      }
+      // Migrated products may carry an old IndexedDB/Cloudinary id in
+      // image_key. Skip those legacy ids while keeping the R2 boundary strict.
+      const validatedKeys = (keys as string[]).filter((key) => key.startsWith(`${user.id}/`));
+      if (!validatedKeys.length) return NextResponse.json({ deleted: true, count: keys.length, skipped: keys.length });
+      const result = await r2().send(new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: { Objects: validatedKeys.map((Key) => ({ Key })), Quiet: true },
+      }));
+      if (result.Errors?.length) {
+        console.error("R2 bulk delete returned errors", result.Errors);
+        return NextResponse.json({ error: `R2 no pudo borrar ${result.Errors.length} archivo(s).` }, { status: 502 });
+      }
+      return NextResponse.json({ deleted: true, count: keys.length, skipped: keys.length - validatedKeys.length });
     }
 
     if (body.action === "delete") {

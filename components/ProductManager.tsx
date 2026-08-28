@@ -42,11 +42,13 @@ import { PlanLimits } from "../lib/plans";
 
 interface ProductManagerProps {
   products: Product[];
+  allProductCount?: number;
   plan: PlanLimits;
   currency?: 'MXN' | 'COP';
   headerAction?: React.ReactNode;
   onAdd: (product: Product) => void | Promise<boolean>;
   onRemove: (id: string) => void | Promise<boolean>;
+  onRemoveAll: () => void | Promise<boolean>;
   onUpdate: (id: string, updates: Partial<Product>) => void | Promise<boolean>;
   onDownloadPdfAll?: () => void;
   onDownloadPdfByCategory?: (category: string) => void;
@@ -228,11 +230,13 @@ const normalizeHtml = (s: any): string => {
 
 export const ProductManager: React.FC<ProductManagerProps> = ({
   products,
+  allProductCount = products.length,
   plan,
   currency = 'COP',
   headerAction,
   onAdd,
   onRemove,
+  onRemoveAll,
   onUpdate,
   onDownloadPdfAll,
   onDownloadPdfByCategory,
@@ -256,6 +260,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
 
   const [imagePreview, setImagePreview] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isRemovingAll, setIsRemovingAll] = useState(false);
   const isSavingRef = React.useRef(false);
   const editPreviewObjectUrlRef = React.useRef<string | null>(null);
   const formRef = React.useRef<HTMLDivElement>(null);
@@ -1322,6 +1327,33 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const prompt = allProductCount
+                ? `¿Eliminar los ${allProductCount} productos?\n\nSe borrarán definitivamente de la base de datos y sus imágenes de R2. Esta acción no se puede deshacer.`
+                : "¿Reintentar la limpieza de todas las imágenes de productos en R2?";
+              if (!window.confirm(prompt)) return;
+              setIsRemovingAll(true);
+              try {
+                const removed = await onRemoveAll();
+                if (removed !== false) {
+                  setCategoryFilter("__ALL__");
+                  setSearchTerm("");
+                  resetForm();
+                }
+              } finally {
+                setIsRemovingAll(false);
+              }
+            }}
+            disabled={isRemovingAll}
+            className="col-span-2 w-full sm:col-span-1 sm:w-auto flex items-center justify-center gap-2 bg-red-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Eliminar definitivamente todos los productos y sus imágenes"
+          >
+            {isRemovingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            <span>{isRemovingAll ? "Eliminando..." : !allProductCount ? "Limpiar imágenes" : "Eliminar todos"}</span>
+          </button>
+
           <button
             onClick={() => plan.excel ? excelInputRef.current?.click() : window.alert("La importación por Excel está disponible en Premium.")}
             className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100"

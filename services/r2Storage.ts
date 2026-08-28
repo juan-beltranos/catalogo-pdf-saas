@@ -75,6 +75,23 @@ export async function deleteCatalogImage(key?: string): Promise<void> {
   throw lastError instanceof Error ? lastError : new Error("No fue posible eliminar la imagen de R2.");
 }
 
+export async function deleteCatalogImages(keys: Array<string | undefined>): Promise<void> {
+  const uniqueKeys = [...new Set(keys.filter((key): key is string => !!key))];
+  if (!uniqueKeys.length) return;
+  for (let offset = 0; offset < uniqueKeys.length; offset += 1000) {
+    const batch = uniqueKeys.slice(offset, offset + 1000);
+    const result = await callAssetApi({ action: "delete-many", keys: batch });
+    if (result?.deleted !== true || result?.count !== batch.length) {
+      throw new Error("R2 no confirmó la eliminación de todas las imágenes.");
+    }
+  }
+}
+
+export async function deleteAllProductImages(): Promise<void> {
+  const result = await callAssetApi({ action: "delete-product-images" });
+  if (result?.deleted !== true) throw new Error("R2 no confirmó la limpieza de imágenes.");
+}
+
 export async function fetchCatalogAssetBlob(sourceUrl: string, signal?: AbortSignal): Promise<Blob> {
   try {
     const direct = await fetch(sourceUrl, { mode: "cors", credentials: "omit", cache: "force-cache", signal });

@@ -3,7 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { CatalogSummary, Product, StoreInfo } from "../types";
 import { STORAGE_KEY } from "../constants";
 import { supabase } from "../lib/supabase";
-import { deleteCatalogImage, uploadCatalogImage } from "../services/r2Storage";
+import { deleteAllProductImages, deleteCatalogImage, uploadCatalogImage } from "../services/r2Storage";
 import { getImageBlob } from "../helper/imageDB";
 import { getPlan, PlanLimits } from "../lib/plans";
 import { Entitlements, FeatureOverride, getEffectiveEntitlements } from "../lib/entitlements";
@@ -358,7 +358,31 @@ export const useCatalog = (user: User) => {
         await Promise.allSettled([...oldProducts.map((p) => deleteCatalogImage(p.imageId)), deleteCatalogImage(oldStore.logoKey), deleteCatalogImage(oldStore.headerImageKey), deleteCatalogImage(oldStore.coverImageKey)]); });
   }, [businessId, products, storeInfo]);
 
+  const removeAllProducts = useCallback(async (): Promise<boolean> => {
+    if (!businessId || !supabase) return false;
+    if (isActiveCatalogReadOnly) { setError("Este catálogo está disponible en modo lectura."); return false; }
+    const { data: deleted, error: deleteError } = await supabase.from("products")
+      .delete().eq("business_id", businessId).select("id");
+    if (deleteError) { setError(deleteError.message); return false; }
+    if ((deleted?.length || 0) !== libraryProducts.length) {
+      setError("No se pudieron eliminar todos los productos. Actualiza la página e inténtalo nuevamente.");
+      return false;
+    }
+    setProducts([]);
+    setLibraryProducts([]);
+    setCatalogs((current) => current.map((catalog) => ({ ...catalog, productCount: 0 })));
+    try {
+      await deleteAllProductImages();
+    } catch (deleteError) {
+      const message = deleteError instanceof Error ? deleteError.message : "Error desconocido";
+      setError(`Los productos se eliminaron, pero no se pudieron borrar todas sus imágenes de R2: ${message}`);
+      return false;
+    }
+    setError(null);
+    return true;
+  }, [businessId, isActiveCatalogReadOnly, libraryProducts]);
+
   const activeCatalog = catalogs.find((catalog) => catalog.id === activeCatalogId) || null;
   return { storeInfo, products, libraryProducts, plan, entitlements, catalogs, activeCatalog, activeCatalogId, openCatalog, createCatalog, duplicateCatalog, archiveCatalog, renameCatalog, deleteCatalog, addLibraryProductsToCatalog,
-    updateStoreInfo, addProduct, updateProduct, removeProduct, clearAll, loading, error };
+    updateStoreInfo, addProduct, updateProduct, removeProduct, removeAllProducts, clearAll, loading, error };
 };
