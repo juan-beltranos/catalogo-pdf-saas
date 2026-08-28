@@ -2,16 +2,26 @@ import { supabase } from "../lib/supabase";
 
 export type UploadedAsset = { key: string; url: string };
 
+const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit, timeoutMs: number) => {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+};
+
 async function callAssetApi(body: Record<string, unknown>) {
   if (!supabase) throw new Error("Supabase no está configurado.");
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Tu sesión expiró. Inicia sesión nuevamente.");
-  const response = await fetch("/api/assets", {
+  const response = await fetchWithTimeout("/api/assets", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
-  });
+  }, 12_000);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "No fue posible autorizar la operación en R2.");
   return data;
@@ -31,16 +41,16 @@ export async function uploadCatalogImage(dataUrl: string, kind: "product" | "log
   const data = await callAssetApi({ action: "sign-upload", kind, contentType, size: blob.size });
   if (!data?.key || !data?.url || !data?.uploadUrl) throw new Error("R2 no devolvió una autorización de carga.");
   try {
-    const upload = await fetch(data.uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: blob });
+    const upload = await fetchWithTimeout(data.uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: blob }, 6_000);
     if (!upload.ok) throw new Error(`R2 rechazó la carga (${upload.status}).`);
   } catch (directUploadError) {
     const { data: sessionData } = await supabase!.auth.getSession();
     const token = sessionData.session?.access_token;
-    const fallback = await fetch(`/api/assets?key=${encodeURIComponent(data.key)}`, {
+    const fallback = await fetchWithTimeout(`/api/assets?key=${encodeURIComponent(data.key)}`, {
       method: "PUT",
       headers: { "Content-Type": contentType, Authorization: `Bearer ${token}` },
       body: blob,
-    });
+    }, 20_000);
     if (!fallback.ok) {
       const details = await fallback.json().catch(() => ({}));
       throw new Error(details.error || (directUploadError instanceof Error ? directUploadError.message : "No fue posible subir la imagen."));

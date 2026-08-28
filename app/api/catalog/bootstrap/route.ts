@@ -10,6 +10,20 @@ const adminClient = () => {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 };
 
+const ensurePrimaryCatalog = async (admin: ReturnType<typeof adminClient>, business: Record<string, any>) => {
+  const existing = await admin.from("catalogs").select("id").eq("business_id", business.id).eq("is_primary", true).maybeSingle();
+  if (existing.error) throw existing.error;
+  if (existing.data) return;
+  const inserted = await admin.from("catalogs").insert({
+    business_id: business.id,
+    name: business.name?.trim() || "Catálogo principal",
+    is_primary: true,
+    template_id: business.template_id || "minimalist",
+    settings: business.settings || {},
+  });
+  if (inserted.error && inserted.error.code !== "23505") throw inserted.error;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const authorization = request.headers.get("authorization") || "";
@@ -20,7 +34,10 @@ export async function POST(request: NextRequest) {
     if (authError || !authData.user) return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
     const existing = await admin.from("businesses").select("*").eq("owner_id", authData.user.id).maybeSingle();
     if (existing.error) throw existing.error;
-    if (existing.data) return NextResponse.json({ business: existing.data });
+    if (existing.data) {
+      await ensurePrimaryCatalog(admin, existing.data);
+      return NextResponse.json({ business: existing.data });
+    }
     // This endpoint can be called more than once during the initial client
     // mount. Upsert makes business creation atomic when requests overlap.
     const created = await admin
@@ -29,6 +46,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .single();
     if (created.error) throw created.error;
+    await ensurePrimaryCatalog(admin, created.data);
     return NextResponse.json({ business: created.data }, { status: 201 });
   } catch (cause: any) {
     console.error("Catalog bootstrap failed", cause);

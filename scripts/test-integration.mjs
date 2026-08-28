@@ -35,6 +35,9 @@ try {
 
   result = await json(await fetch(`${base}/api/catalog/bootstrap`, { method: "POST", headers: { authorization } }));
   assert(result.response.ok && result.body.business?.plan === "pro", `Bootstrap incorrecto: ${result.body.error || result.response.status}`);
+  const primaryCatalog = await client.from("catalogs").select("id,is_primary").eq("business_id", result.body.business.id).eq("is_primary", true);
+  if (primaryCatalog.error) throw primaryCatalog.error;
+  assert(primaryCatalog.data.length === 1, "Bootstrap no creó exactamente un catálogo principal");
 
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
   result = await json(await fetch(`${base}/api/assets`, {
@@ -53,7 +56,7 @@ try {
   }));
   assert(result.response.ok && result.body.deleted === true, `Eliminación R2 falló: ${result.body.error || result.response.status}`);
   assetKey = undefined;
-  console.log("INTEGRATION_OK register login bootstrap plan r2-upload r2-read r2-delete");
+  console.log("INTEGRATION_OK register login bootstrap primary-catalog plan r2-upload r2-read r2-delete");
 } finally {
   if (assetKey && userId) {
     const cleanupClient = createClient(url, anonKey, options);

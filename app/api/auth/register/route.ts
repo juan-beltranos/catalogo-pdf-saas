@@ -10,6 +10,19 @@ const required = (name: string) => {
   return value;
 };
 
+const adminClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error("Falta configurar la URL de Supabase");
+  return createClient(supabaseUrl, required("SUPABASE_SERVICE_ROLE_KEY"), {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+};
+
+interface RegistrationOffer {
+  id: string | null;
+  plan: PlanId;
+}
+
 const tokenPlan = (token: string): PlanId | null => {
   const entries: Array<[PlanId, string | undefined]> = [
     ["basic", process.env.REGISTRATION_TOKEN_BASIC],
@@ -19,10 +32,28 @@ const tokenPlan = (token: string): PlanId | null => {
   return entries.find(([, configured]) => configured?.trim() && configured.trim() === token)?.[0] ?? null;
 };
 
+const resolveOffer = async (token: string): Promise<RegistrationOffer | null> => {
+  if (!token) return null;
+  const admin = adminClient();
+  const result = await admin.from("registration_tokens")
+    .select("id,plan,enabled,max_uses,used_count,expires_at")
+    .eq("token_value", token).maybeSingle();
+  if (!result.error && result.data) {
+    const row = result.data;
+    const expired = row.expires_at && Date.parse(row.expires_at) <= Date.now();
+    const exhausted = row.max_uses !== null && row.used_count >= row.max_uses;
+    if (!row.enabled || expired || exhausted) return null;
+    return { id: row.id, plan: row.plan as PlanId };
+  }
+  // Compatibility while the database migration is being deployed.
+  const legacyPlan = tokenPlan(token);
+  return legacyPlan ? { id: null, plan: legacyPlan } : null;
+};
+
 export async function GET(request: NextRequest) {
-  const plan = tokenPlan(request.nextUrl.searchParams.get("token")?.trim() || "");
-  return plan
-    ? NextResponse.json({ valid: true, plan })
+  const offer = await resolveOffer(request.nextUrl.searchParams.get("token")?.trim() || "");
+  return offer
+    ? NextResponse.json({ valid: true, plan: offer.plan })
     : NextResponse.json({ valid: false, error: "El enlace de compra no es válido." }, { status: 404 });
 }
 
@@ -32,9 +63,9 @@ export async function POST(request: NextRequest) {
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body?.password === "string" ? body.password : "";
     const token = typeof body?.token === "string" ? body.token.trim() : "";
-    const plan = tokenPlan(token);
+    const offer = await resolveOffer(token);
 
-    if (!plan) {
+    if (!offer) {
       return NextResponse.json({ error: "Necesitas un enlace de compra válido para crear la cuenta." }, { status: 403 });
     }
 
@@ -45,17 +76,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "La contraseña debe tener entre 8 y 72 caracteres." }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) throw new Error("Falta configurar la URL de Supabase");
-    const admin = createClient(supabaseUrl, required("SUPABASE_SERVICE_ROLE_KEY"), {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const admin = adminClient();
 
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      app_metadata: { plan },
+      app_metadata: {
+        plan: offer.plan,
+        registration_token_id: offer.id,
+      },
     });
 
     if (error) {
@@ -66,7 +96,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ created: true, userId: data.user.id }, { status: 201 });
+    if (offer.id) {
+      const usage = await admin.from("registration_tokens").update({ used_count: (await admin.from("registration_tokens").select("used_count").eq("id", offer.id).single()).data?.used_count + 1 || 1 }).eq("id", offer.id);
+      if (usage.error) console.error("Could not update registration token usage", usage.error);
+    }
+    return NextResponse.json({ created: true, userId: data.user.id, plan: offer.plan }, { status: 201 });
   } catch (error) {
     console.error("Registration route failed", error);
     return NextResponse.json({ error: "No fue posible crear la cuenta." }, { status: 500 });

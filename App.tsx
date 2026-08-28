@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useCatalog } from "./hooks/useCatalog.ts";
 import { StoreForm } from "./components/StoreForm.tsx";
 import { ProductManager } from "./components/ProductManager.tsx";
@@ -8,7 +8,7 @@ import { CatalogPreview } from "./components/CatalogPreview.tsx";
 import { ExportButton } from "./components/ExportButton.tsx";
 import { TemplateSelector } from "./components/TemplateSelector.tsx";
 import { ViewMode, TemplateId } from "./types.ts";
-import { Eye, Edit3, Settings2, Sparkles, Trash2, X } from "lucide-react";
+import { Eye, Edit3, LayoutTemplate, LockKeyhole, Package, Sparkles, Store, CheckCircle2, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { User } from "@supabase/supabase-js";
 import { useAuth } from "./hooks/useAuth";
@@ -17,45 +17,70 @@ import { ConfigurationRequired } from "./components/ConfigurationRequired";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import { Loader2, LogOut } from "lucide-react";
 import { PasswordRecovery } from "./components/PasswordRecovery";
-import { SidebarAccordion } from "./components/SidebarAccordion";
 import { WhatsAppSupportButton } from "./components/WhatsAppSupportButton";
+import { CatalogLibrary } from "./components/CatalogLibrary";
+import { WorkspaceSidebar, type WorkspaceModule } from "./components/WorkspaceSidebar";
+import { getPlan } from "./lib/plans";
 
 const FOOTER_BANNER_URL =
   "https://firebasestorage.googleapis.com/v0/b/sistema-catalogo-digitales.firebasestorage.app/o/banner-catalogo-digital.jpg?alt=media&token=c874b38a-b8d3-457c-8b3e-50af5c97eae0";
+
+const ModulePanel: React.FC<{ icon: LucideIcon; title: string; description: string; children: React.ReactNode }> = ({ icon: Icon, title, description, children }) => (
+  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+    <header className="mb-6 flex items-start gap-3 border-b border-slate-100 pb-5">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600"><Icon className="h-5 w-5" /></span>
+      <div><h2 className="text-xl font-bold text-slate-900">{title}</h2><p className="mt-1 text-sm text-slate-500">{description}</p></div>
+    </header>
+    {children}
+  </section>
+);
+
+const PremiumNotice: React.FC<{ title: string; description: string }> = ({ title, description }) => (
+  <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+    <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="text-sm font-bold">{title}</p><p className="mt-1 text-sm text-amber-700">{description}</p></div>
+  </div>
+);
+
+const ToolCard: React.FC<{ title: string; description: string; href: string; label: string; locked: boolean }> = ({ title, description, href, label, locked }) => (
+  <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+    <div className="flex items-center justify-between gap-3"><Sparkles className="h-5 w-5 text-blue-600" />{locked && <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-700"><LockKeyhole className="h-3 w-3" />Suscripción</span>}</div>
+    <h3 className="mt-4 font-bold text-slate-900">{title}</h3><p className="mt-2 text-sm text-slate-500">{description}</p>
+    {locked ? <button type="button" disabled className="mt-4 rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold text-slate-500">{label}</button> : <a href={href} target="_blank" rel="noopener noreferrer" className="mt-4 inline-block rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700">{label}</a>}
+  </article>
+);
+
+const PlanStat: React.FC<{ label: string; value: string }> = ({ label, value }) => <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-2 text-lg font-bold text-slate-900">{value}</p></div>;
+
+const FeatureState: React.FC<{ enabled: boolean; label: string }> = ({ enabled, label }) => <li className="flex items-center gap-2"><CheckCircle2 className={`h-4 w-4 ${enabled ? "text-emerald-500" : "text-slate-300"}`} /><span>{label}</span>{!enabled && <LockKeyhole className="h-3.5 w-3.5 text-slate-400" />}</li>;
 
 const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
   const {
     storeInfo,
     products,
+    libraryProducts,
     plan,
+    entitlements,
+    catalogs,
+    activeCatalog,
+    activeCatalogId,
+    openCatalog,
+    createCatalog,
+    duplicateCatalog,
+    archiveCatalog,
+    renameCatalog,
+    deleteCatalog,
+    addLibraryProductsToCatalog,
     updateStoreInfo,
     addProduct,
     updateProduct,
     removeProduct,
-    clearAll,
     loading,
     error,
   } = useCatalog(user);
 
   const [viewMode, setViewMode] = useState<ViewMode>("editor");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeModule, setActiveModule] = useState<WorkspaceModule>("products");
   const previewRef = useRef<HTMLDivElement>(null);
-  const closeSettingsRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!settingsOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSettingsOpen(false);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    window.requestAnimationFrame(() => closeSettingsRef.current?.focus());
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [settingsOpen]);
 
   const handleTemplateSelect = (id: TemplateId) => {
     updateStoreInfo({ templateId: id });
@@ -63,6 +88,11 @@ const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
 
   const handlePdfProductsPerPageChange = (value: number) => {
     updateStoreInfo({ pdfProductsPerPage: value } as any);
+  };
+
+  const handleCatalogPreview = async (catalogId: string) => {
+    const opened = await openCatalog(catalogId);
+    if (opened) setViewMode("preview");
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>;
@@ -120,106 +150,27 @@ const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
             <Trash2 className="w-5 h-5" />
           </button> */}
           <button onClick={() => void supabase?.auth.signOut()} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800" title={`Cerrar sesión (${user.email || "usuario"})`}>
-            <span className="hidden rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700 md:inline">{plan.name}</span><LogOut className="h-4 w-4"/><span className="hidden md:inline">Salir</span>
+            <span className={`hidden rounded-full px-2 py-1 text-xs font-bold md:inline ${entitlements.subscriptionActive ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"}`}>{plan.name}</span>
+            <LogOut className="h-4 w-4"/><span className="hidden md:inline">Salir</span>
           </button>
         </div>
       </header>
 
       {error && <div role="alert" className="mx-auto mt-4 max-w-6xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">No se pudo sincronizar: {error}</div>}
 
-      {/* Content Area */}
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className={`mx-auto px-4 py-6 ${viewMode === "preview" ? "max-w-6xl" : "max-w-[1440px]"}`}>
         <AnimatePresence mode="wait">
           {viewMode === "editor" ? (
-            <motion.div
-              key="editor"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="w-full"
-            >
-              {false && (
-              <div className="hidden">
-                <TemplateSelector
-                  selectedId={storeInfo.templateId}
-                  onSelect={handleTemplateSelect}
-                  pdfProductsPerPage={
-                    (storeInfo as any).pdfProductsPerPage ?? 4
-                  }
-                  onPdfProductsPerPageChange={handlePdfProductsPerPageChange}
-                  advancedLayouts={plan.advancedLayouts}
-                />
-
-                <StoreForm storeInfo={storeInfo} onUpdate={updateStoreInfo} canCustomize={plan.customization} />
-
-                <SidebarAccordion
-                  title="Herramientas externas"
-                  summary="Optimiza y convierte tu catálogo"
-                  icon={Sparkles}
-                  tone="info"
-                >
-                  <div className="space-y-4 text-sm text-blue-700 leading-relaxed">
-                    <div>
-                      <p className="font-semibold text-blue-900">
-                        Optimizar o comprimir PDF
-                      </p>
-                      <p>
-                        Usa iLovePDF para reducir el peso de tu catálogo antes
-                        de compartirlo.
-                      </p>
-                      <a
-                        href="https://www.ilovepdf.com/es/comprimir_pdf"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block mt-1 font-semibold text-blue-600 hover:text-blue-800 underline"
-                      >
-                        Comprimir PDF gratis
-                      </a>
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-blue-900">
-                        Crear catálogo digital
-                      </p>
-                      <p>
-                        Usa Heyzine para convertir tu PDF en un catálogo digital
-                        interactivo. Para usar esta herramienta debes crear una
-                        cuenta gratuita.
-                      </p>
-                      <a
-                        href="https://heyzine.com/es"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block mt-1 font-semibold text-blue-600 hover:text-blue-800 underline"
-                      >
-                        Crear catálogo digital
-                      </a>
-                    </div>
-                  </div>
-                </SidebarAccordion>
-              </div>
-              )}
-
-              <div className="w-full">
-                <ProductManager
-                  products={products}
-                  plan={plan}
-                  currency={storeInfo.whatsappCountryCode === "52" ? "MXN" : "COP"}
-                  onAdd={addProduct}
-                  onRemove={removeProduct}
-                  onUpdate={updateProduct}
-                  headerAction={(
-                    <button
-                      type="button"
-                      onClick={() => setSettingsOpen(true)}
-                      className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    >
-                      <Settings2 className="h-4 w-4" />
-                      <span className="hidden sm:inline">Configurar catálogo</span>
-                      <span className="sm:hidden">Configurar</span>
-                    </button>
-                  )}
-                />
+            <motion.div key="editor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="lg:flex lg:items-start lg:gap-6">
+              <WorkspaceSidebar activeModule={activeModule} onChange={setActiveModule} planName={plan.name} toolsEnabled={entitlements.canUsePremiumProductTools} catalogName={activeCatalog?.name} />
+              <div className="min-w-0 flex-1">
+                {activeCatalog?.readOnly && <div role="status" className="mb-5 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><LockKeyhole className="h-4 w-4 shrink-0" />Este catálogo está en modo lectura. Reactiva la suscripción para modificarlo.</div>}
+                {activeModule === "catalogs" && <ModulePanel icon={Package} title="Mis catálogos" description="Administra tus ediciones y selecciona el catálogo en el que quieres trabajar."><CatalogLibrary catalogs={catalogs} activeCatalogId={activeCatalogId} subscriptionActive={entitlements.subscriptionActive} libraryProducts={libraryProducts} onOpen={(id) => void openCatalog(id)} onPreview={handleCatalogPreview} onCreate={createCatalog} onDuplicate={duplicateCatalog} onArchive={archiveCatalog} onRename={renameCatalog} onDelete={deleteCatalog} onAddProducts={addLibraryProductsToCatalog} /></ModulePanel>}
+                {activeModule === "products" && <ProductManager products={products} plan={plan} currency={storeInfo.whatsappCountryCode === "52" ? "MXN" : "COP"} onAdd={addProduct} onRemove={removeProduct} onUpdate={updateProduct} headerAction={<button type="button" onClick={() => setActiveModule("design")} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"><LayoutTemplate className="h-4 w-4" />Diseño del PDF</button>} />}
+                {activeModule === "design" && <ModulePanel icon={LayoutTemplate} title="Diseño del PDF" description="Elige la plantilla y define cómo se distribuyen los productos en cada página."><TemplateSelector selectedId={storeInfo.templateId} onSelect={handleTemplateSelect} pdfProductsPerPage={(storeInfo as any).pdfProductsPerPage ?? 4} onPdfProductsPerPageChange={handlePdfProductsPerPageChange} advancedLayouts={entitlements.canUseAdvancedLayouts} /></ModulePanel>}
+                {activeModule === "store" && <ModulePanel icon={Store} title="Mi tienda" description="Configura la identidad, información de contacto y redes de tu negocio."><StoreForm storeInfo={storeInfo} onUpdate={updateStoreInfo} canCustomize={entitlements.canCustomizeBrand} /></ModulePanel>}
+                {activeModule === "tools" && <ModulePanel icon={Sparkles} title="Herramientas" description="Prepara tu PDF para compartirlo y conviértelo en una experiencia digital.">{!entitlements.canUsePremiumProductTools && <PremiumNotice title="Herramientas Premium" description="Este módulo está incluido en Premium o con una suscripción activa." />}<div className={`grid gap-4 md:grid-cols-2 ${!entitlements.canUsePremiumProductTools ? "opacity-60" : ""}`}><ToolCard title="Optimizar o comprimir PDF" description="Reduce el peso de tu catálogo antes de compartirlo." href="https://www.ilovepdf.com/es/comprimir_pdf" label="Comprimir PDF" locked={!entitlements.canUsePremiumProductTools} /><ToolCard title="Crear catálogo digital" description="Convierte tu PDF en un catálogo interactivo para tus clientes." href="https://heyzine.com/es" label="Abrir Heyzine" locked={!entitlements.canUsePremiumProductTools} /></div></ModulePanel>}
+                {activeModule === "plan" && <ModulePanel icon={CheckCircle2} title="Plan y suscripción" description="Consulta el uso disponible y las funciones incluidas en tu cuenta."><div className={`mb-5 flex items-center gap-3 rounded-2xl border p-4 ${entitlements.subscriptionActive ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}>{entitlements.subscriptionActive ? <CheckCircle2 className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}<div><p className="font-bold">{entitlements.subscriptionActive ? "Suscripción activa" : "No tienes una suscripción activa"}</p><p className="text-sm">{entitlements.subscriptionActive ? `Todo está habilitado y sin límites. Si vence, volverás a tu versión ${getPlan(entitlements.lifetimePlan).name}.` : `Estás usando tu versión comprada ${getPlan(entitlements.lifetimePlan).name}, con un único catálogo principal.`}</p></div></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><PlanStat label="Estado actual" value={entitlements.subscriptionActive ? "Suscripción" : getPlan(entitlements.lifetimePlan).name} /><PlanStat label="Versión comprada" value={getPlan(entitlements.lifetimePlan).name} /><PlanStat label="Productos" value={plan.products === null ? "Ilimitados" : `${products.length} de ${plan.products}`} /><PlanStat label="Catálogos" value={entitlements.subscriptionActive ? "Ilimitados" : "1 catálogo"} /></div><div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5"><h3 className="font-bold text-slate-900">Funciones de tu cuenta</h3><ul className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2"><FeatureState enabled={entitlements.canCustomizeBrand} label="Personalización de marca" /><FeatureState enabled={entitlements.canImportExcel} label="Importar y exportar Excel" /><FeatureState enabled={entitlements.canUseAdvancedLayouts} label="Layouts avanzados" /><FeatureState enabled={entitlements.subscriptionActive} label="Catálogos ilimitados" /></ul></div></ModulePanel>}
               </div>
             </motion.div>
           ) : (
@@ -232,7 +183,7 @@ const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
             >
               <div className="mb-6 text-center max-w-xl">
                 <h2 className="text-2xl font-bold mb-2">
-                  Vista previa del catálogo
+                  Vista previa · {activeCatalog?.name || "Catálogo principal"}
                 </h2>
 
                 <p className="text-slate-500 text-sm">
@@ -268,102 +219,6 @@ const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
           )}
         </AnimatePresence>
       </main>
-
-      <AnimatePresence>
-        {settingsOpen && (
-          <div className="fixed inset-0 z-[70]" role="presentation">
-            <motion.button
-              type="button"
-              aria-label="Cerrar configuración"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSettingsOpen(false)}
-              className="absolute inset-0 h-full w-full cursor-default bg-slate-950/35 backdrop-blur-[2px]"
-            />
-
-            <motion.aside
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="catalog-settings-title"
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", stiffness: 360, damping: 36 }}
-              className="absolute inset-y-0 left-0 flex w-full max-w-[440px] flex-col bg-slate-50 shadow-2xl"
-            >
-              <div className="flex h-18 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
-                    <Settings2 className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <h2 id="catalog-settings-title" className="font-bold text-slate-900">
-                      Configurar catálogo
-                    </h2>
-                    <p className="truncate text-xs text-slate-500">
-                      Diseño, tienda y opciones del PDF
-                    </p>
-                  </div>
-                </div>
-                <button
-                  ref={closeSettingsRef}
-                  type="button"
-                  onClick={() => setSettingsOpen(false)}
-                  aria-label="Cerrar configuración"
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-5">
-                <TemplateSelector
-                  selectedId={storeInfo.templateId}
-                  onSelect={handleTemplateSelect}
-                  pdfProductsPerPage={(storeInfo as any).pdfProductsPerPage ?? 4}
-                  onPdfProductsPerPageChange={handlePdfProductsPerPageChange}
-                  advancedLayouts={plan.advancedLayouts}
-                />
-                <StoreForm storeInfo={storeInfo} onUpdate={updateStoreInfo} canCustomize={plan.customization} />
-                <SidebarAccordion
-                  title="Herramientas externas"
-                  summary="Optimiza y convierte tu catálogo"
-                  icon={Sparkles}
-                  tone="info"
-                >
-                  <div className="space-y-5 text-sm leading-relaxed text-blue-700">
-                    <div>
-                      <p className="font-semibold text-blue-950">Optimizar o comprimir PDF</p>
-                      <p>Reduce el peso de tu catálogo antes de compartirlo.</p>
-                      <a href="https://www.ilovepdf.com/es/comprimir_pdf" target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-semibold text-blue-600 underline hover:text-blue-800">
-                        Comprimir PDF gratis
-                      </a>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-blue-950">Crear catálogo digital</p>
-                      <p>Convierte tu PDF en un catálogo digital interactivo.</p>
-                      <a href="https://heyzine.com/es" target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-semibold text-blue-600 underline hover:text-blue-800">
-                        Abrir Heyzine
-                      </a>
-                    </div>
-                  </div>
-                </SidebarAccordion>
-              </div>
-
-              <div className="shrink-0 border-t border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <button
-                  type="button"
-                  onClick={() => setSettingsOpen(false)}
-                  className="h-11 w-full rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                >
-                  Listo
-                </button>
-              </div>
-            </motion.aside>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Footer Info */}
       <footer className="border-t border-slate-200">

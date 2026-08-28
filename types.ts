@@ -42,3 +42,17 @@ export interface StoreInfo {
 }
 
 export type ViewMode = 'editor' | 'preview';
+
+export interface CatalogSummary {
+  id: string;
+  businessId: string;
+  name: string;
+  description: string;
+  status: 'active' | 'archived';
+  isPrimary: boolean;
+  templateId: TemplateId;
+  settings: Record<string, unknown>;
+  productCount: number;
+  updatedAt: string;
+  readOnly: boolean;
+}
