@@ -20,9 +20,10 @@ import {
 interface CatalogPreviewProps {
   storeInfo: StoreInfo;
   products: Product[];
-  previewRef: React.RefObject<HTMLDivElement | null>;
+  previewRef?: React.RefObject<HTMLDivElement | null>;
   productsOverride?: Product[];
   pdfProductsPerPage?: number;
+  miniature?: boolean;
 }
 
 export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
@@ -31,6 +32,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
   previewRef,
   productsOverride,
   pdfProductsPerPage = 4,
+  miniature = false,
 }) => {
   const {
     templateId = "minimalist",
@@ -42,28 +44,29 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
   const isClassic = templateId === "classic";
   const isModern = templateId === "modern";
 
-  const pageSurfaceClass = "bg-white text-slate-900";
+  const pageSurfaceClass = isClassic
+    ? "bg-[#f4efe7] text-stone-900"
+    : isModern
+      ? "bg-slate-100 text-slate-900"
+      : "bg-white text-slate-900";
   const headerClass = storeInfo.headerMode === "image" && !!storeInfo.headerImage
     ? "text-white border-b border-slate-200"
     : isModern
-      ? "bg-white text-slate-900 border-b-2"
+      ? "bg-slate-950 text-white border-b-4"
       : isClassic
-        ? "bg-white text-stone-900 border-b border-stone-300"
+        ? "bg-[#f4efe7] text-stone-900 border-b border-[#c9bba7]"
         : "bg-white text-slate-900 border-b border-slate-200";
   const headerStyle = storeInfo.headerMode === "image" && !!storeInfo.headerImage
-    ? {
-        backgroundImage: `url(${storeInfo.headerImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }
+    ? { backgroundColor: "#334155" }
     : isModern
-      ? { borderColor: primaryColor }
+      ? { borderColor: primaryColor, backgroundColor: "#020617" }
       : {};
-  const contentClass = "bg-white";
+  const contentClass = isClassic ? "bg-[#f4efe7]" : isModern ? "bg-slate-100" : "bg-white";
   const footerClass = isClassic
-    ? "border-stone-200 bg-white"
-    : "border-slate-100 bg-white";
+    ? "border-[#d8cbbb] bg-[#f4efe7]"
+    : isModern
+      ? "border-slate-200 bg-white text-slate-600"
+      : "border-slate-100 bg-white";
 
   const headerMode = storeInfo.headerMode ?? "color";
   const hasHeaderImage = headerMode === "image" && !!storeInfo.headerImage;
@@ -165,7 +168,16 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
         className={`catalog-header px-4 py-6 md:p-10 relative overflow-hidden ${headerClass}`}
         style={headerStyle}
       >
-        {hasHeaderImage && <div className="absolute inset-0 bg-black/35 z-0" />}
+        {hasHeaderImage && <>
+          <img
+            src={storeInfo.headerImage}
+            alt=""
+            aria-hidden="true"
+            data-header-banner="true"
+            className="absolute inset-0 z-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 z-[1] bg-black/35" />
+        </>}
         <div
           className={`flex flex-col md:flex-row justify-between items-center gap-6 relative z-10 ${
             isClassic ? "text-center md:text-left" : ""
@@ -534,8 +546,8 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
   };
 
   return (
-    <div className="flex w-full min-h-screen flex-col items-center gap-6 p-3 md:p-8 bg-slate-200/30">
-      {storeInfo.coverImage && (
+    <div className={miniature ? "flex w-[800px] flex-col items-center bg-slate-200/30" : "flex w-full min-h-screen flex-col items-center gap-6 p-3 md:p-8 bg-slate-200/30"}>
+      {!miniature && storeInfo.coverImage && (
         <div
           className={`w-full max-w-[800px] aspect-[210/297] overflow-hidden bg-white shadow-sm ${
             isModern
@@ -554,10 +566,11 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
         </div>
       )}
 
-      {productPages.map((pageProducts, pageIndex) => (
+      {(miniature ? productPages.slice(0, 1) : productPages).map((pageProducts, pageIndex) => (
         <div
           key={`preview-page-${pageIndex}`}
           className={previewPageClass}
+          data-template-id={templateId}
           style={{
             minHeight: "1120px",
             ["--brand-color" as any]: storeInfo.color || "#f97316",
@@ -588,9 +601,10 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
         </div>
       ))}
 
-      <div
+      {!miniature && <div
         ref={previewRef}
         id="catalog-capture-area"
+        data-template-id={templateId}
         className={`${previewPageClass} absolute left-[-99999px] top-0 pointer-events-none opacity-0`}
         style={{
           minHeight: "1120px",
@@ -734,7 +748,16 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
           style={headerStyle}
         >
           {hasHeaderImage && (
-            <div className="absolute inset-0 bg-black/35 z-0" />
+            <>
+              <img
+                src={storeInfo.headerImage}
+                alt=""
+                aria-hidden="true"
+                data-header-banner="true"
+                className="absolute inset-0 z-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 z-[1] bg-black/35" />
+            </>
           )}
           <div
             className={`flex flex-col md:flex-row justify-between items-center gap-6 relative z-10 ${
@@ -791,7 +814,9 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
                       ? hasHeaderImage
                         ? "text-white"
                         : "text-slate-600"
-                      : "text-slate-600"
+                      : isModern
+                        ? "text-white"
+                        : "text-stone-700"
                   }`}
                 >
                   {storeInfo.whatsapp && (
@@ -873,9 +898,6 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
             </div>
           </div>
 
-          {hasHeaderImage && (
-            <div className="absolute inset-0 bg-black/35 z-0" />
-          )}
         </div>
 
         {storeInfo.whatsapp && (
@@ -885,7 +907,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
                 ? "bg-white border-slate-100 text-slate-500"
                 : isClassic
                   ? "bg-stone-50 border-stone-100 text-stone-600"
-                  : "bg-slate-50 border-slate-100 text-slate-600"
+                  : "bg-white border-slate-200 text-slate-600"
             }`}
           >
             <div className="flex items-center justify-center gap-2 text-xs">
@@ -1155,7 +1177,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

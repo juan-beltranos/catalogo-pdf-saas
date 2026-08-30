@@ -44,6 +44,7 @@ interface ProductManagerProps {
   products: Product[];
   allProductCount?: number;
   plan: PlanLimits;
+  canUseWholesalePrice?: boolean;
   currency?: 'MXN' | 'COP';
   headerAction?: React.ReactNode;
   onAdd: (product: Product) => void | Promise<boolean>;
@@ -232,6 +233,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
   products,
   allProductCount = products.length,
   plan,
+  canUseWholesalePrice = plan.name === "Suscripción",
   currency = 'COP',
   headerAction,
   onAdd,
@@ -248,6 +250,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     name: "",
     sku: "",
     price: "",
+    wholesalePrice: "",
     originalPrice: "",
     description: "",
     quantity: "",
@@ -469,6 +472,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
       name: "",
       sku: "",
       price: "",
+      wholesalePrice: "",
       originalPrice: "",
       quantity: "",
       description: "",
@@ -491,6 +495,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
       name: product.name,
       sku: ((product as any).sku || "").toString(),
       price: product.price.toString(),
+      wholesalePrice: typeof product.wholesalePrice === "number" ? String(product.wholesalePrice) : "",
       originalPrice:
         typeof (product as any).originalPrice === "number" &&
           (product as any).originalPrice > 0
@@ -595,6 +600,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         : (formData.category || "").trim();
 
     const price = parseFloat(formData.price) || 0;
+    const wholesalePrice = formData.wholesalePrice.trim() === "" ? undefined : Math.max(0, parseFloat(formData.wholesalePrice) || 0);
     const parsedOriginalPrice = parseFloat(formData.originalPrice);
 
     const originalPrice =
@@ -608,6 +614,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
       name: formData.name,
       sku: formData.sku.trim(),
       price,
+      ...(canUseWholesalePrice ? { wholesalePrice } : {}),
       originalPrice,
       quantity:
         formData.quantity.trim() === ""
@@ -635,6 +642,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         name: productData.name as string,
         sku: productData.sku || "",
         price: productData.price as number,
+        wholesalePrice: productData.wholesalePrice as number | undefined,
         originalPrice: productData.originalPrice as number | undefined,
         quantity: (productData.quantity as number) ?? 0,
         description: productData.description as string,
@@ -1668,9 +1676,10 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
             exit={{ opacity: 0, y: -20 }}
             className="bg-white p-6 rounded-2xl shadow-sm border-2 border-blue-500 space-y-4"
           >
-            <h3 className="font-bold text-lg text-blue-900">
-              {isEditing ? "Editar Producto" : "Nuevo Producto"}
-            </h3>
+            <div>
+              <h3 className="font-bold text-lg text-blue-900">{isEditing ? "Editar producto" : "Crear producto"}</h3>
+              <p className="mt-1 text-sm text-slate-500">Completa la información una sola vez. Podrás reutilizar este producto en todos tus catálogos.</p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
@@ -1828,31 +1837,44 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                   </p>
                 </div>
 
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                    $
-                  </span>
-
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder="Precio actual"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, price: e.target.value }))
-                    }
-                    className="w-full pl-8 pr-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700" htmlFor="retail-price">Precio de venta <span className="font-normal text-slate-400">· clientes</span></label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                    <input id="retail-price" type="number" min={0} step="0.01" placeholder="Precio de venta" value={formData.price} onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))} className="w-full rounded-xl border border-slate-200 py-2 pl-8 pr-4 outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700" htmlFor="wholesale-price">Precio mayorista <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">SUSCRIPCIÓN</span></label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                    <input
+                      id="wholesale-price"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="Precio mayorista (opcional)"
+                      value={formData.wholesalePrice}
+                      disabled={!canUseWholesalePrice}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, wholesalePrice: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 py-2 pl-8 pr-4 outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    />
+                  </div>
+                  <p className={`text-[11px] ${canUseWholesalePrice ? "text-blue-600" : "text-slate-400"}`}>
+                    {canUseWholesalePrice ? "Se usará automáticamente en los catálogos mayoristas." : "Disponible únicamente con una suscripción activa."}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700" htmlFor="previous-price">Precio anterior <span className="font-normal text-slate-400">· descuento opcional</span></label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                       $
                     </span>
 
                     <input
+                      id="previous-price"
                       type="number"
                       min={0}
                       step="0.01"
@@ -2185,6 +2207,12 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                                 </p>
                               )}
                             </div>
+
+                            {canUseWholesalePrice && typeof product.wholesalePrice === "number" && (
+                              <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">
+                                Mayorista: {formatCurrency(product.wholesalePrice, currency)}
+                              </p>
+                            )}
 
                             <p className="text-xs text-slate-500 mt-1">
                               Cantidad:{" "}

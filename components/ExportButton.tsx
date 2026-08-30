@@ -522,6 +522,9 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
 
       const original = targetRef.current;
       const clone = original.cloneNode(true) as HTMLElement;
+      const selectedTemplateId = clone.dataset.templateId || "minimalist";
+      const pdfSurfaceColor = selectedTemplateId === "classic" ? "#f4efe7" : selectedTemplateId === "modern" ? "#f1f5f9" : "#ffffff";
+      const pdfCardColor = selectedTemplateId === "classic" ? "#fffdf9" : "#ffffff";
       const brandColor =
         getComputedStyle(original).getPropertyValue("--brand-color").trim() ||
         "#f97316";
@@ -562,14 +565,12 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
       (
         Array.from(
           clone.querySelectorAll(
-            "#catalog-capture-area, .products-grid, .catalog-footer, [data-pdf-footer='true']",
+            "#catalog-capture-area, .products-grid",
           ),
         ) as HTMLElement[]
       ).forEach((el) => {
-        el.style.background = "transparent";
-        el.style.backgroundColor = "transparent";
-        el.style.background = "#ffffff";
-        el.style.backgroundColor = "#ffffff";
+        el.style.background = pdfSurfaceColor;
+        el.style.backgroundColor = pdfSurfaceColor;
       });
 
       clone.querySelectorAll('[data-hide-on-pdf="true"]').forEach((el) => {
@@ -667,6 +668,18 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
             header.querySelectorAll("img"),
           ) as HTMLImageElement[];
           headerImgs.forEach((img) => {
+            if (img.dataset.headerBanner === "true") {
+              img.style.position = "absolute";
+              img.style.inset = "0";
+              img.style.width = "100%";
+              img.style.height = "100%";
+              img.style.minHeight = "170px";
+              img.style.maxHeight = "none";
+              img.style.objectFit = "cover";
+              img.style.objectPosition = "center";
+              img.style.display = "block";
+              return;
+            }
             const looksLikeLogo =
               img.matches(
                 '[data-store-logo="true"], [data-logo="true"], .store-logo img, .logo img, .brand-logo img',
@@ -709,19 +722,44 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
 
           (
             Array.from(
+              header.querySelectorAll('[data-pdf-link="social"]'),
+            ) as HTMLElement[]
+          ).forEach((social) => {
+            social.style.width = "42px";
+            social.style.height = "42px";
+            social.style.minHeight = "42px";
+            social.style.padding = "0";
+            social.style.display = "inline-flex";
+            social.style.alignItems = "center";
+            social.style.justifyContent = "center";
+            social.style.borderRadius = "9999px";
+            social.style.backgroundColor = "rgba(15, 23, 42, 0.82)";
+            social.style.color = "#ffffff";
+            social.style.border = "1px solid rgba(255,255,255,0.75)";
+          });
+
+          (
+            Array.from(
               header.querySelectorAll(
-                '[data-store-whatsapp="true"], a[href*="wa.me"], a[href*="whatsapp"], .whatsapp, .phone, .social-link',
+                '[data-store-whatsapp="true"], a[href*="wa.me"]:not([data-pdf-link="social"]), a[href*="whatsapp"]:not([data-pdf-link="social"]), .whatsapp, .phone, .social-link',
               ),
             ) as HTMLElement[]
           ).forEach((el) => {
-            el.style.minHeight = "42px";
-            el.style.padding = "10px 18px";
-            el.style.fontSize = "18px";
-            el.style.lineHeight = "1";
-            el.style.display = "inline-flex";
-            el.style.alignItems = "center";
-            el.style.justifyContent = "center";
-            el.style.gap = "8px";
+            const control = el.dataset.storeWhatsapp === "true" && el.parentElement
+              ? el.parentElement as HTMLElement
+              : el;
+            control.style.minHeight = "42px";
+            control.style.padding = "10px 18px";
+            control.style.fontSize = "18px";
+            control.style.lineHeight = "1";
+            control.style.display = "inline-flex";
+            control.style.alignItems = "center";
+            control.style.justifyContent = "center";
+            control.style.gap = "8px";
+            control.style.backgroundColor = "rgba(255,255,255,0.96)";
+            control.style.color = "#0f172a";
+            control.style.border = "1px solid #e2e8f0";
+            control.style.borderRadius = "9999px";
           });
         });
       };
@@ -753,7 +791,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
       ).forEach((card) => {
         // Conservamos bordes, espaciado y jerarquía del preview. Antes se
         // eliminaban los estilos de la tarjeta y el PDF terminaba siendo otro diseño.
-        card.style.backgroundColor = "#ffffff";
+        card.style.backgroundColor = pdfCardColor;
         card.style.overflow = "hidden";
       });
 
@@ -955,8 +993,18 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
               img.crossOrigin = "anonymous";
             }
 
-            // Si ya es data URL, no hacer nada
-            if (src.startsWith("data:")) return;
+            // Los fondos embebidos son más fiables que <img> al capturar el
+            // encabezado en algunos navegadores y visores PDF.
+            if (src.startsWith("data:")) {
+              if ((img.dataset.storeLogo === "true" || img.dataset.headerBanner === "true") && img.parentElement) {
+                img.parentElement.style.backgroundImage = `url("${src}")`;
+                img.parentElement.style.backgroundSize = img.dataset.headerBanner === "true" ? "cover" : "contain";
+                img.parentElement.style.backgroundPosition = "center";
+                img.parentElement.style.backgroundRepeat = "no-repeat";
+                img.style.opacity = "0";
+              }
+              return;
+            }
 
             try {
               let blob: Blob;
@@ -972,10 +1020,26 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
               img.src = dataUrl;
               await waitLoad(img, 5000);
 
+              if (img.dataset.headerBanner === "true" && img.parentElement) {
+                img.parentElement.style.backgroundImage = `url("${dataUrl}")`;
+                img.parentElement.style.backgroundSize = "cover";
+                img.parentElement.style.backgroundPosition = "center";
+                img.parentElement.style.backgroundRepeat = "no-repeat";
+                img.style.opacity = "0";
+              }
+
+              if (img.dataset.storeLogo === "true" && img.parentElement) {
+                img.parentElement.style.backgroundImage = `url("${dataUrl}")`;
+                img.parentElement.style.backgroundSize = "contain";
+                img.parentElement.style.backgroundPosition = "center";
+                img.parentElement.style.backgroundRepeat = "no-repeat";
+                img.style.opacity = "0";
+              }
+
               const wrap = img.parentElement;
-              wrap
-                ?.querySelectorAll(".absolute.inset-0")
-                .forEach((el) => el.remove());
+              if (img.dataset.headerBanner !== "true") {
+                wrap?.querySelectorAll(".absolute.inset-0").forEach((el) => el.remove());
+              }
             } catch {
               // Intentar via canvas como último recurso en iOS
               if (isIOS && img.complete && img.naturalWidth > 0) {
@@ -994,6 +1058,18 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
       updateProgress(62, "Ajustando diseño del PDF...");
 
       imgs.forEach((img) => {
+        if (img.dataset.headerBanner === "true") {
+          img.style.position = "absolute";
+          img.style.inset = "0";
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.maxWidth = "none";
+          img.style.maxHeight = "none";
+          img.style.objectFit = "cover";
+          img.style.objectPosition = "center";
+          img.style.margin = "0";
+          return;
+        }
         if (img.naturalWidth > 0 && img.naturalHeight > 0) {
           img.parentElement
             ?.querySelectorAll(".absolute.inset-0")
@@ -1431,7 +1507,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         card.style.maxHeight = "none";
         card.style.boxSizing = "border-box";
         card.style.overflow = "hidden";
-        card.style.backgroundColor = "#ffffff";
+        card.style.backgroundColor = pdfCardColor;
 
         const mediaEls = getProductMediaEls(card);
         mediaEls.forEach((media) => {
@@ -1817,13 +1893,15 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
 
       const makePage = (includeHeader: boolean) => {
         const page = clone.cloneNode(true) as HTMLElement;
+        const templateId = clone.dataset.templateId || "minimalist";
+        const pageSurface = templateId === "classic" ? "#f4efe7" : templateId === "modern" ? "#f1f5f9" : "#ffffff";
 
         page.style.position = "absolute";
         page.style.left = "-99999px";
         page.style.top = "0";
         page.style.width = `${EXPORT_WIDTH_PX}px`;
         page.style.maxWidth = `${EXPORT_WIDTH_PX}px`;
-        page.style.backgroundColor = "#ffffff";
+        page.style.backgroundColor = pageSurface;
         // La marca de agua se dibuja al terminar el canvas: es más compatible
         // que usar un background-image durante la captura del DOM.
         page.style.boxSizing = "border-box";
@@ -1858,7 +1936,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
           align-items:start !important;
           width:100% !important;
           box-sizing:border-box !important;
-          background:#ffffff !important;
+          background:${pageSurface} !important;
         `;
 
         controlHeaderFooter(page, includeHeader, true);

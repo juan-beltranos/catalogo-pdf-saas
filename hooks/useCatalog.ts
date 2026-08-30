@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { CatalogSummary, Product, StoreInfo } from "../types";
+import { CatalogAudience, CatalogSummary, Product, StoreInfo } from "../types";
 import { STORAGE_KEY } from "../constants";
 import { supabase } from "../lib/supabase";
 import { deleteAllProductImages, deleteCatalogImage, uploadCatalogImage } from "../services/r2Storage";
@@ -35,14 +35,18 @@ const storeToBusiness = (store: StoreInfo) => ({
 });
 
 const rowToProduct = (row: any): Product => ({ id: row.id, name: row.name, sku: row.sku || "", price: Number(row.price),
+  wholesalePrice: row.wholesale_price == null ? undefined : Number(row.wholesale_price),
   originalPrice: row.original_price == null ? undefined : Number(row.original_price), description: row.description || "",
   category: row.category || "", image: row.image_url || "", imageId: row.image_key || "", order: row.sort_order,
   featured: row.featured, hidden: row.hidden, quantity: row.quantity == null ? undefined : row.quantity });
 
 const productToRow = (p: Product, businessId: string) => ({ id: p.id, business_id: businessId, name: p.name,
-  sku: p.sku || "", price: p.price, original_price: p.originalPrice ?? null, description: p.description || "",
+  sku: p.sku || "", price: p.price, wholesale_price: p.wholesalePrice ?? null, original_price: p.originalPrice ?? null, description: p.description || "",
   category: p.category || "", image_url: p.image || null, image_key: p.imageId || null, sort_order: p.order ?? 0,
   featured: !!p.featured, hidden: !!p.hidden, quantity: p.quantity ?? null });
+
+const catalogAudience = (settings: Record<string, unknown> | null | undefined): CatalogAudience =>
+  settings?.audience === "wholesale" ? "wholesale" : "retail";
 
 export const useCatalog = (user: User) => {
   const [plan, setPlan] = useState<PlanLimits>(() => getPlan(user.app_metadata?.plan));
@@ -119,7 +123,7 @@ export const useCatalog = (user: User) => {
         const loadedCatalogs: CatalogSummary[] = (catalogsResult.data || []).map((catalog: any) => ({
           id: catalog.id, businessId: catalog.business_id, name: catalog.name, description: catalog.description || "",
           status: catalog.status, isPrimary: !!catalog.is_primary, templateId: catalog.template_id,
-          settings: catalog.settings || {}, productCount: catalog.catalog_products?.[0]?.count || 0,
+          settings: catalog.settings || {}, audience: catalogAudience(catalog.settings), productCount: catalog.catalog_products?.[0]?.count || 0,
           updatedAt: catalog.updated_at, readOnly: !catalog.is_primary && !effective.subscriptionActive,
         }));
         const initialCatalog = loadedCatalogs.find((catalog) => catalog.isPrimary) || loadedCatalogs[0];
@@ -176,21 +180,38 @@ export const useCatalog = (user: User) => {
     if (loadError) { setError(loadError.message); return false; }
     const selected = (data || []).map((item: any) => {
       const product = rowToProduct(Array.isArray(item.products) ? item.products[0] : item.products);
-      return { ...product, order: item.sort_order, price: item.price_override == null ? product.price : Number(item.price_override),
+      const catalogPrice = catalog.audience === "wholesale" ? product.wholesalePrice ?? product.price : product.price;
+      return { ...product, order: item.sort_order, price: item.price_override == null ? catalogPrice : Number(item.price_override),
         description: item.description_override ?? product.description, hidden: item.hidden_override ?? product.hidden };
     });
     setProducts(selected); setActiveCatalogId(catalogId); setError(null); return true;
   }, [catalogs]);
 
-  const createCatalog = useCallback(async (name: string) => {
+  const createCatalog = useCallback(async (name: string, audience: CatalogAudience = "retail") => {
     if (!supabase || !entitlements.canCreateMultipleCatalogs) { setError("Esta función requiere una suscripción activa."); return false; }
-    const { data, error: createError } = await supabase.rpc("create_catalog", { catalog_name: name.trim() });
+    const primaryCatalog = catalogs.find((catalog) => catalog.isPrimary);
+    const result = audience === "wholesale" && primaryCatalog
+      ? await supabase.rpc("duplicate_catalog", { source_catalog: primaryCatalog.id, catalog_name: name.trim() })
+      : await supabase.rpc("create_catalog", { catalog_name: name.trim() });
+    const { data, error: createError } = result;
     if (createError) { setError(createError.message); return false; }
     const row = Array.isArray(data) ? data[0] : data;
+    const settings = { ...(row.settings || {}), audience };
+    const { error: settingsError } = await supabase.from("catalogs").update({ settings }).eq("id", row.id);
+    if (settingsError) {
+      await supabase.from("catalogs").delete().eq("id", row.id);
+      setError(settingsError.message); return false;
+    }
+    const copiedProducts = audience === "wholesale" && !!primaryCatalog;
     const catalog: CatalogSummary = { id: row.id, businessId: row.business_id, name: row.name, description: row.description || "", status: row.status,
-      isPrimary: false, templateId: row.template_id, settings: row.settings || {}, productCount: 0, updatedAt: row.updated_at, readOnly: false };
-    setCatalogs((current) => [catalog, ...current]); setProducts([]); setActiveCatalogId(catalog.id); setError(null); return true;
-  }, [entitlements.canCreateMultipleCatalogs]);
+      isPrimary: false, templateId: row.template_id, settings, audience, productCount: copiedProducts ? primaryCatalog!.productCount : 0, updatedAt: row.updated_at, readOnly: false };
+    setCatalogs((current) => [catalog, ...current]);
+    setProducts(copiedProducts ? libraryProducts.map((product) => ({
+      ...product,
+      price: product.wholesalePrice ?? product.price,
+    })) : []);
+    setActiveCatalogId(catalog.id); setError(null); return true;
+  }, [catalogs, entitlements.canCreateMultipleCatalogs, libraryProducts]);
 
   const duplicateCatalog = useCallback(async (catalog: CatalogSummary) => {
     if (!supabase || !entitlements.canDuplicateCatalogs) { setError("Esta función requiere una suscripción activa."); return false; }
@@ -198,7 +219,7 @@ export const useCatalog = (user: User) => {
     if (duplicateError) { setError(duplicateError.message); return false; }
     const row = Array.isArray(data) ? data[0] : data;
     setCatalogs((current) => [{ id: row.id, businessId: row.business_id, name: row.name, description: row.description || "", status: row.status,
-      isPrimary: false, templateId: row.template_id, settings: row.settings || {}, productCount: catalog.productCount, updatedAt: row.updated_at, readOnly: false }, ...current]);
+      isPrimary: false, templateId: row.template_id, settings: row.settings || {}, audience: catalogAudience(row.settings), productCount: catalog.productCount, updatedAt: row.updated_at, readOnly: false }, ...current]);
     setError(null); return true;
   }, [entitlements.canDuplicateCatalogs]);
 
@@ -233,7 +254,11 @@ export const useCatalog = (user: User) => {
     const catalog = catalogs.find((item) => item.id === activeCatalogId);
     if (!catalog || catalog.isPrimary) return false;
     const existing = new Set(products.map((product) => product.id));
-    const selected = libraryProducts.filter((product) => productIds.includes(product.id) && !existing.has(product.id));
+    const selected = libraryProducts
+      .filter((product) => productIds.includes(product.id) && !existing.has(product.id))
+      .map((product) => catalog.audience === "wholesale"
+        ? { ...product, price: product.wholesalePrice ?? product.price }
+        : product);
     if (!selected.length) return true;
     const { error: linkError } = await supabase.from("catalog_products").upsert(selected.map((product, index) => ({
       catalog_id: catalog.id, product_id: product.id, sort_order: products.length + index, included: true,

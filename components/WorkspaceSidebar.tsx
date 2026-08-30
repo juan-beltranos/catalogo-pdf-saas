@@ -37,6 +37,7 @@ interface WorkspaceSidebarProps {
   onChange: (module: WorkspaceModule) => void;
   planName: string;
   toolsEnabled: boolean;
+  catalogsEnabled: boolean;
   catalogName?: string;
 }
 
@@ -45,10 +46,11 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   onChange,
   planName,
   toolsEnabled,
+  catalogsEnabled,
   catalogName,
 }) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const items: NavigationItem[] = [
+  const allItems: NavigationItem[] = [
     { id: "catalogs", label: "Mis catálogos", description: "Ediciones y biblioteca", icon: FileStack },
     { id: "products", label: "Productos", description: "Productos y categorías", icon: Package },
     { id: "design", label: "Diseño del PDF", description: "Plantilla y distribución", icon: LayoutTemplate },
@@ -56,6 +58,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
     { id: "tools", label: "Herramientas", description: "Optimiza y comparte", icon: Sparkles, locked: !toolsEnabled },
     { id: "plan", label: "Plan y suscripción", description: "Uso y beneficios", icon: CreditCard },
   ];
+  const items = allItems.filter((item) => catalogsEnabled || item.id !== "catalogs");
   const activeItem = items.find((item) => item.id === activeModule) ?? items[0];
 
   const selectModule = (module: WorkspaceModule) => {

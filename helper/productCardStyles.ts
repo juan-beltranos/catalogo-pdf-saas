@@ -25,16 +25,16 @@ export const getProductCardTheme = (
     return {
       card: `
         group product-pdf relative flex flex-col overflow-hidden
-        rounded-[1.5rem] border-2 border-slate-200 bg-white
-        shadow-[0_16px_38px_rgba(15,23,42,0.10)]
+        rounded-[1.5rem] border border-slate-200 bg-white
+        shadow-[0_18px_40px_rgba(15,23,42,0.14)]
         transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_50px_rgba(15,23,42,0.12)]
       `,
       mediaWrap: `
-        relative bg-white p-3
+        relative bg-white p-3 pb-0
       `,
       mediaInner: `
         product-media relative aspect-[4/3] w-full overflow-hidden
-        rounded-[1.05rem] bg-white
+        rounded-t-[1.15rem] rounded-b-none bg-gradient-to-br from-slate-50 to-blue-50
         flex items-center justify-center ring-1 ring-slate-100
       `,
       image: `
@@ -62,10 +62,10 @@ export const getProductCardTheme = (
         text-[14px] leading-none font-extrabold text-white shadow-sm
       `,
       body: `
-        relative px-5 pb-5 pt-4 bg-white
+        relative px-5 pb-5 pt-4 bg-white border-t-4 border-slate-900
       `,
       title: `
-        text-[19px] leading-[1.12] font-extrabold text-slate-950
+        text-[20px] leading-[1.08] font-black uppercase tracking-tight text-slate-950
       `,
       description: `
         mt-2 text-[13px] leading-[1.55] text-slate-500
@@ -76,7 +76,7 @@ export const getProductCardTheme = (
       actionHint: `
         px-4 h-9 inline-flex items-center justify-center rounded-lg
         text-[10px] font-extrabold uppercase tracking-[0.08em]
-        border border-slate-200 text-slate-800 bg-white
+        border border-transparent text-white bg-blue-600
       `,
       footerLine: `
         mt-4 h-[3px] w-14 rounded-full
@@ -88,17 +88,17 @@ export const getProductCardTheme = (
     return {
       card: `
         group product-pdf relative flex flex-col overflow-hidden
-        rounded-none border border-stone-300 bg-white
-        shadow-[0_10px_28px_rgba(120,83,38,0.10)]
+        rounded-none border border-[#c9bba7] bg-[#fffdf9]
+        shadow-[0_12px_28px_rgba(87,65,43,0.12)]
         transition-all duration-300
       `,
       mediaWrap: `
-        relative p-3 bg-white
+        relative p-3 bg-[#fffdf9]
       `,
       mediaInner: `
         product-media relative aspect-[4/5] w-full overflow-hidden
-        rounded-none bg-white
-        flex items-center justify-center border border-stone-200
+        rounded-none bg-[#f7f1e8]
+        flex items-center justify-center border border-[#d8cbbb]
       `,
       image: `
         w-full h-full object-contain mx-auto block
@@ -124,7 +124,7 @@ export const getProductCardTheme = (
         text-[14px] leading-none font-bold text-white
       `,
       body: `
-        relative px-5 pb-5 pt-4 text-center bg-white
+        relative px-5 pb-5 pt-4 text-center bg-[#fffdf9]
       `,
       title: `
         text-[19px] leading-[1.18] font-bold font-serif text-stone-950

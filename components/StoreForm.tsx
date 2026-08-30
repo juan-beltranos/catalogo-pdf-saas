@@ -1,10 +1,9 @@
 import React from 'react';
 import { StoreInfo } from '../types';
-import { Store, Image as ImageIcon, Facebook, Instagram, MessageCircle, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Facebook, Instagram, MessageCircle, Trash2 } from 'lucide-react';
 import { compressImage } from '../constants';
 import { cleanHandle, getWaNationalNumber, inferWaCountryCode, normalizeWaNumber, WaCountryCode } from '@/helper/social';
 import { deleteCatalogImage, uploadCatalogImage } from '@/services/r2Storage';
-import { SidebarAccordion } from './SidebarAccordion';
 
 interface StoreFormProps {
   storeInfo: StoreInfo;
@@ -78,12 +77,7 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
   };
 
   return (
-    <SidebarAccordion
-      title="Datos de tu tienda"
-      summary={storeInfo.name?.trim() || 'Completa la información de tu negocio'}
-      icon={Store}
-    >
-      <div className="space-y-4">
+      <div className="space-y-5">
         {!canCustomize && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-700">Color, logo, portada y redes sociales están disponibles desde el plan Pro.</p>}
 
         {/* Nombre */}
@@ -365,6 +359,5 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
         </div>
 
       </div>
-    </SidebarAccordion>
   );
 };

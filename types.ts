@@ -3,6 +3,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
+  wholesalePrice?: number;
   description: string;
   category?: string;
   image?: string; // base64 o url
@@ -42,6 +43,7 @@ export interface StoreInfo {
 }
 
 export type ViewMode = 'editor' | 'preview';
+export type CatalogAudience = 'retail' | 'wholesale';
 
 export interface CatalogSummary {
   id: string;
@@ -52,6 +54,7 @@ export interface CatalogSummary {
   isPrimary: boolean;
   templateId: TemplateId;
   settings: Record<string, unknown>;
+  audience: CatalogAudience;
   productCount: number;
   updatedAt: string;
   readOnly: boolean;
