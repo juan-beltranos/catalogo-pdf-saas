@@ -10,11 +10,13 @@ import {
   LockKeyhole,
   Menu,
   Package,
+  PlayCircle,
   Sparkles,
   Store,
   X,
   type LucideIcon,
 } from "lucide-react";
+import { TutorialVideoDialog } from "./TutorialVideoDialog";
 
 export type WorkspaceModule =
   | "catalogs"
@@ -50,6 +52,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   catalogName,
 }) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const allItems: NavigationItem[] = [
     { id: "catalogs", label: "Mis catálogos", description: "Ediciones y biblioteca", icon: FileStack },
     { id: "products", label: "Productos", description: "Productos y categorías", icon: Package },
@@ -106,6 +109,21 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         })}
       </nav>
       <div className="border-t border-slate-200 p-4">
+        <button
+          type="button"
+          onClick={() => {
+            setMobileOpen(false);
+            setTutorialOpen(true);
+          }}
+          className="mb-3 flex w-full items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 text-left text-blue-700 transition hover:border-blue-200 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
+        >
+          <PlayCircle className="h-5 w-5 shrink-0 text-blue-600" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">Ver video tutorial</span>
+            <span className="mt-0.5 block text-xs text-blue-600/75">Aprende a usar la plataforma</span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-blue-400" aria-hidden="true" />
+        </button>
         <div className="rounded-xl bg-slate-50 p-3">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-slate-500">Plan actual</span>
@@ -150,6 +168,8 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
           </aside>
         </div>
       )}
+
+      <TutorialVideoDialog open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
     </>
   );
 };
