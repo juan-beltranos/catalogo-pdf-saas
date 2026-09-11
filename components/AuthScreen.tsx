@@ -5,6 +5,13 @@ import { getPlan, PlanId } from "../lib/plans";
 
 type Mode = "login" | "register" | "forgot";
 
+const configuredAppOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN?.trim().replace(/\/+$/, "");
+
+const getPasswordResetRedirectUrl = () => {
+  const origin = configuredAppOrigin || window.location.origin;
+  return `${origin}/`;
+};
+
 export const AuthScreen: React.FC<{ initialRegistrationToken?: string }> = ({ initialRegistrationToken = "" }) => {
   const [mode, setMode] = useState<Mode>(initialRegistrationToken ? "register" : "login");
   const [email, setEmail] = useState("");
@@ -39,7 +46,7 @@ export const AuthScreen: React.FC<{ initialRegistrationToken?: string }> = ({ in
     try {
       if (mode === "forgot") {
         const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: getPasswordResetRedirectUrl(),
         });
         if (authError) throw authError;
         setMessage("Te enviamos un enlace para recuperar tu contraseña.");

@@ -18,7 +18,7 @@ Aplicación Next.js para administrar productos y generar catálogos PDF. Supabas
 3. Aplica la migración `supabase/migrations/20260825000000_catalog_schema.sql` desde Supabase SQL Editor o CLI.
 4. Conecta un dominio personalizado público al bucket R2.
 5. Define `APP_ORIGIN` con el dominio de producción y ejecuta `npm run configure:r2-cors`. Esto habilita las cargas directas desde producción y localhost.
-6. Configura en Supabase Auth las URLs permitidas para desarrollo y producción.
+6. Configura en Supabase Auth las URLs permitidas para desarrollo y producción. En **Authentication > URL Configuration**, usa tu dominio real como **Site URL** y agrega en **Redirect URLs** `https://tu-dominio.com/*` y `http://localhost:3000/*`.
 7. Crea los enlaces comerciales en `public.registration_tokens` desde el Table Editor de Supabase. Comparte enlaces con el formato `https://tu-dominio.com/?token=TOKEN_DEL_PLAN`.
 8. Ejecuta `npm run dev` y abre `http://localhost:3000`.
 
@@ -42,6 +42,8 @@ Para cambiar el plan de un cliente después de la compra, edita `lifetime_plan` 
 ## Producción
 
 Ejecuta `npm run build` y despliega el proyecto en un proveedor compatible con Next.js, como Vercel. Registra allí todas las variables de `.env.example`. Las variables R2 y `SUPABASE_SERVICE_ROLE_KEY` nunca deben usar el prefijo `NEXT_PUBLIC_`.
+
+Para la recuperación de contraseña, define `NEXT_PUBLIC_APP_ORIGIN` con el dominio de producción, por ejemplo `https://tu-dominio.com`, antes de hacer el build/deploy. Si queda vacío, el navegador usa `window.location.origin`, lo que puede provocar enlaces a `localhost` si el build o la vista activa no están usando el dominio público.
 
 La ruta de archivos acepta imágenes de hasta 5 MB y PDF de hasta 25 MB, crea claves aisladas por usuario y genera URLs firmadas válidas durante cinco minutos. Configura caché de larga duración en el dominio personalizado R2 porque cada imagen utiliza una clave única.
 
