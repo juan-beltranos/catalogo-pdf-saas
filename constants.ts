@@ -1,14 +1,16 @@
 
+import { CatalogCurrency, getCurrencyFormat } from "./helper/social";
+
+export type { CatalogCurrency };
+
 export const STORAGE_KEY = 'instacatalog_data';
 
-export type CatalogCurrency = 'MXN' | 'COP';
-
 export const formatCurrency = (amount: number, currency: CatalogCurrency = 'COP'): string => {
-  const locale = currency === 'MXN' ? 'en-US' : 'es-CO';
+  const { locale, decimals } = getCurrencyFormat(currency);
   const formattedAmount = new Intl.NumberFormat(locale, {
     style: 'decimal',
-    minimumFractionDigits: currency === 'MXN' ? 2 : 0,
-    maximumFractionDigits: currency === 'MXN' ? 2 : 0,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   }).format(amount);
 
   return `$${formattedAmount}`;

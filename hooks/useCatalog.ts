@@ -7,8 +7,9 @@ import { deleteAllProductImages, deleteCatalogImage, uploadCatalogImage } from "
 import { getImageBlob } from "../helper/imageDB";
 import { getPlan, PlanLimits } from "../lib/plans";
 import { Entitlements, FeatureOverride, getEffectiveEntitlements } from "../lib/entitlements";
+import { DEFAULT_WA_COUNTRY, isWaCountryCode } from "@/helper/social";
 
-const DEFAULT_STORE: StoreInfo = { name: "", whatsapp: "", color: "#3b82f6", templateId: "minimalist", whatsappCountryCode: "57", headerMode: "color", pdfProductsPerPage: 4 };
+const DEFAULT_STORE: StoreInfo = { name: "", whatsapp: "", color: "#3b82f6", templateId: "minimalist", whatsappCountryCode: DEFAULT_WA_COUNTRY, headerMode: "color", pdfProductsPerPage: 4 };
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const errorMessage = (cause: unknown) => {
   if (cause instanceof Error) return cause.message;
@@ -17,7 +18,7 @@ const errorMessage = (cause: unknown) => {
 };
 
 const businessToStore = (row: any): StoreInfo => ({
-  name: row.name || "", whatsapp: row.whatsapp || "", whatsappCountryCode: row.whatsapp_country_code || "57",
+  name: row.name || "", whatsapp: row.whatsapp || "", whatsappCountryCode: isWaCountryCode(row.whatsapp_country_code) ? row.whatsapp_country_code : DEFAULT_WA_COUNTRY,
   facebook: row.facebook || "", instagram: row.instagram || "", additionalInfo: row.additional_info || "",
   color: row.color || "#3b82f6", templateId: row.template_id || "minimalist", logo: row.logo_url || "",
   logoKey: row.logo_key || "", headerImage: row.header_image_url || "", headerImageKey: row.header_image_key || "",
@@ -25,7 +26,7 @@ const businessToStore = (row: any): StoreInfo => ({
 });
 
 const storeToBusiness = (store: StoreInfo) => ({
-  name: store.name, whatsapp: store.whatsapp, whatsapp_country_code: store.whatsappCountryCode || "57",
+  name: store.name, whatsapp: store.whatsapp, whatsapp_country_code: store.whatsappCountryCode || DEFAULT_WA_COUNTRY,
   facebook: store.facebook || "", instagram: store.instagram || "", additional_info: store.additionalInfo || "",
   color: store.color, template_id: store.templateId, logo_url: store.logo || null, logo_key: store.logoKey || null,
   header_image_url: store.headerImage || null, header_image_key: store.headerImageKey || null,

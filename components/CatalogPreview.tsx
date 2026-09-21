@@ -8,6 +8,8 @@ import {
   instagramUrl,
   facebookLabel,
   instagramLabel,
+  DEFAULT_WA_COUNTRY,
+  getCurrencyForWaCountry,
   formatWaNumber,
   normalizeWaNumber,
 } from "@/helper/social";
@@ -72,7 +74,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
   const hasHeaderImage = headerMode === "image" && !!storeInfo.headerImage;
 
   const sourceProducts = productsOverride ?? products;
-  const currency = storeInfo.whatsappCountryCode === "52" ? "MXN" : "COP";
+  const currency = getCurrencyForWaCountry(storeInfo.whatsappCountryCode);
 
   const orderedProducts = useMemo(() => {
     const arr = [...sourceProducts].filter((p) => !p.hidden);
@@ -87,11 +89,11 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
   }, [sourceProducts]);
 
   const wa = useMemo(
-    () => normalizeWaNumber(storeInfo.whatsapp || "", storeInfo.whatsappCountryCode ?? "57"),
+    () => normalizeWaNumber(storeInfo.whatsapp || "", storeInfo.whatsappCountryCode ?? DEFAULT_WA_COUNTRY),
     [storeInfo.whatsapp, storeInfo.whatsappCountryCode],
   );
   const waDisplay = useMemo(
-    () => formatWaNumber(storeInfo.whatsapp || "", storeInfo.whatsappCountryCode ?? "57"),
+    () => formatWaNumber(storeInfo.whatsapp || "", storeInfo.whatsappCountryCode ?? DEFAULT_WA_COUNTRY),
     [storeInfo.whatsapp, storeInfo.whatsappCountryCode],
   );
 

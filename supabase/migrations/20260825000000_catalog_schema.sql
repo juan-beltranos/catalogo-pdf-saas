@@ -4,7 +4,7 @@ create table if not exists public.businesses (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null unique references auth.users(id) on delete cascade,
   name text not null default '', whatsapp text not null default '',
-  whatsapp_country_code text not null default '57' check (whatsapp_country_code in ('52', '57')),
+  whatsapp_country_code text not null default '57' check (whatsapp_country_code in ('57','52','591','593','56','51','54')),
   facebook text not null default '', instagram text not null default '', additional_info text not null default '',
   color text not null default '#3b82f6', template_id text not null default 'minimalist' check (template_id in ('minimalist','classic','modern')),
   logo_url text, logo_key text, header_image_url text, header_image_key text, cover_image_url text, cover_image_key text,

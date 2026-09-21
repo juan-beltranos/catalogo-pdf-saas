@@ -1,8 +1,8 @@
 import React from 'react';
 import { StoreInfo } from '../types';
-import { Image as ImageIcon, Facebook, Instagram, MessageCircle, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Image as ImageIcon, Facebook, Instagram, MessageCircle, Trash2 } from 'lucide-react';
 import { compressImage } from '../constants';
-import { cleanHandle, getWaNationalNumber, inferWaCountryCode, normalizeWaNumber, WaCountryCode } from '@/helper/social';
+import { cleanHandle, getWaCountry, getWaNationalNumber, inferWaCountryCode, normalizeWaNumber, WaCountryCode, WA_COUNTRIES } from '@/helper/social';
 import { deleteCatalogImage, uploadCatalogImage } from '@/services/r2Storage';
 
 interface StoreFormProps {
@@ -11,8 +11,28 @@ interface StoreFormProps {
   canCustomize?: boolean;
 }
 
+const countryFlagStyle: Record<WaCountryCode, React.CSSProperties> = {
+  "57": { background: "linear-gradient(180deg, #fcd116 0 50%, #003893 50% 75%, #ce1126 75% 100%)" },
+  "52": { background: "linear-gradient(90deg, #006341 0 33%, #ffffff 33% 66%, #ce1126 66% 100%)" },
+  "591": { background: "linear-gradient(180deg, #d52b1e 0 33%, #f9e300 33% 66%, #007a33 66% 100%)" },
+  "593": { background: "linear-gradient(180deg, #fcd116 0 50%, #003893 50% 75%, #ce1126 75% 100%)" },
+  "56": { background: "linear-gradient(90deg, #0039a6 0 34%, transparent 34%), linear-gradient(180deg, #ffffff 0 50%, #d52b1e 50% 100%)" },
+  "51": { background: "linear-gradient(90deg, #d91023 0 33%, #ffffff 33% 66%, #d91023 66% 100%)" },
+  "54": { background: "linear-gradient(180deg, #74acdf 0 33%, #ffffff 33% 66%, #74acdf 66% 100%)" },
+};
+
+const CountryFlag: React.FC<{ country: WaCountryCode; className?: string }> = ({ country, className = "" }) => (
+  <span
+    aria-hidden="true"
+    className={`inline-block h-4 w-6 shrink-0 overflow-hidden rounded-[3px] border border-slate-200 shadow-sm ${className}`}
+    style={countryFlagStyle[country]}
+  />
+);
+
 export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCustomize = false }) => {
   const whatsappCountry = storeInfo.whatsappCountryCode ?? inferWaCountryCode(storeInfo.whatsapp);
+  const selectedWhatsappCountry = getWaCountry(whatsappCountry);
+  const [countryMenuOpen, setCountryMenuOpen] = React.useState(false);
 
   const handleWhatsappCountryChange = (country: WaCountryCode) => {
     const nationalNumber = getWaNationalNumber(storeInfo.whatsapp, whatsappCountry);
@@ -78,9 +98,8 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
 
   return (
       <div className="space-y-5">
-        {!canCustomize && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-700">Color, logo, portada y redes sociales están disponibles desde el plan Pro.</p>}
+        {!canCustomize && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-700">Color, logo, portada y redes sociales est&aacute;n disponibles desde el plan Pro.</p>}
 
-        {/* Nombre */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Nombre del Negocio
@@ -89,26 +108,73 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
             type="text"
             value={storeInfo.name}
             onChange={(e) => onUpdate({ name: e.target.value })}
-            placeholder="Ej. Mi Tienda Increíble"
+            placeholder="Ej. Mi Tienda Increible"
             className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
 
-        {/* WhatsApp */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             WhatsApp de Contacto
           </label>
           <div className="flex gap-2">
-            <select
-              value={whatsappCountry}
-              onChange={(e) => handleWhatsappCountryChange(e.target.value as WaCountryCode)}
-              aria-label="País del número de WhatsApp"
-              className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="57">🇨🇴 +57</option>
-              <option value="52">🇲🇽 +52</option>
-            </select>
+            <div className="relative w-40 shrink-0">
+              <button
+                type="button"
+                onClick={() => setCountryMenuOpen((open) => !open)}
+                aria-haspopup="listbox"
+                aria-expanded={countryMenuOpen}
+                aria-label="Pais del numero de WhatsApp"
+                className="flex h-full min-h-[42px] w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left outline-none transition hover:border-blue-200 hover:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <CountryFlag country={whatsappCountry} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs font-bold text-slate-700">
+                      {selectedWhatsappCountry.name}
+                    </span>
+                    <span className="block text-xs font-semibold text-slate-500">
+                      +{selectedWhatsappCountry.dialCode}
+                    </span>
+                  </span>
+                </span>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${countryMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {countryMenuOpen && (
+                <div
+                  role="listbox"
+                  className="absolute left-0 top-[calc(100%+6px)] z-30 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl shadow-slate-900/10"
+                >
+                  {WA_COUNTRIES.map((country) => {
+                    const selected = country.code === whatsappCountry;
+                    return (
+                      <button
+                        key={country.code}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => {
+                          handleWhatsappCountryChange(country.code);
+                          setCountryMenuOpen(false);
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${
+                          selected ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <CountryFlag country={country.code} className="h-5 w-7" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">{country.name}</span>
+                          <span className="block text-xs text-slate-500">+{country.dialCode}</span>
+                        </span>
+                        {selected && <Check className="h-4 w-4 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="relative flex-1">
               <MessageCircle className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-green-500" />
               <input
@@ -118,26 +184,22 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
                   whatsappCountryCode: whatsappCountry,
                   whatsapp: normalizeWaNumber(e.target.value, whatsappCountry),
                 })}
-                placeholder={whatsappCountry === "57" ? "3001234567" : "5512345678"}
+                placeholder={selectedWhatsappCountry.placeholder}
                 className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
           </div>
         </div>
 
-        {/* Facebook */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Facebook</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600">
               <Facebook className="w-4 h-4" />
             </span>
-
-            {/* prefijo */}
             <span className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
               facebook.com/
             </span>
-
             <input
               type="text"
               value={storeInfo.facebook || ""}
@@ -149,19 +211,15 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
           </div>
         </div>
 
-        {/* Instagram */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Instagram</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500">
               <Instagram className="w-4 h-4" />
             </span>
-
-            {/* prefijo */}
             <span className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
               instagram.com/
             </span>
-
             <input
               type="text"
               value={storeInfo.instagram || ""}
@@ -173,9 +231,7 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
           </div>
         </div>
 
-        {/* Color y Logo */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Color */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Fondo del Banner
@@ -245,7 +301,6 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
             )}
           </div>
 
-          {/* Logo */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
              Tu Logo
@@ -331,7 +386,6 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
           </div>
         </div>
 
-        {/* Checkbox */}
         <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
           <input
             id="showQuantityInPdf"
@@ -357,7 +411,6 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
             Mostrar marca de agua con mi logo en el PDF
           </label>
         </div>
-
       </div>
   );
 };

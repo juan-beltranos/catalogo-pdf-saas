@@ -4,8 +4,8 @@ import { jsPDF } from "jspdf";
 import { getImageBlob, getImageUrl } from "@/helper/imageDB";
 import { groupByCategory, slug } from "../helper/catalog";
 import { Product, StoreInfo } from "@/types";
-import { normalizeWaNumber } from "@/helper/social";
-import { formatCurrency } from "@/constants";
+import { DEFAULT_WA_COUNTRY, normalizeWaNumber, WaCountryCode } from "@/helper/social";
+import { CatalogCurrency, formatCurrency } from "@/constants";
 import { fetchCatalogAssetBlob } from "@/services/r2Storage";
 import { ChevronDown, Download, Settings2, Share2 } from "lucide-react";
 
@@ -14,8 +14,8 @@ interface ExportButtonProps {
   fileName: string;
   products: Product[];
   businessWhatsapp: string;
-  businessWhatsappCountryCode?: "52" | "57";
-  currency?: "MXN" | "COP";
+  businessWhatsappCountryCode?: WaCountryCode;
+  currency?: CatalogCurrency;
   pdfProductsPerPage?: number;
   coverImage?: StoreInfo["coverImage"];
   showWatermarkInPdf?: boolean;
@@ -27,7 +27,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
   fileName,
   products,
   businessWhatsapp,
-  businessWhatsappCountryCode = "57",
+  businessWhatsappCountryCode = DEFAULT_WA_COUNTRY,
   currency = "COP",
   pdfProductsPerPage = 4,
   coverImage,

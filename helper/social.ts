@@ -32,17 +32,56 @@ export const instagramLabel = (handle: string) => {
     return h ? `instagram.com/${h}` : "";
 };
 
-export type WaCountryCode = "52" | "57";
+export const WA_COUNTRIES = [
+    { code: "57", dialCode: "57", flag: "🇨🇴", name: "Colombia", label: "CO +57", placeholder: "3001234567", currency: "COP", locale: "es-CO", decimals: 0 },
+    { code: "52", dialCode: "52", flag: "🇲🇽", name: "Mexico", label: "MX +52", placeholder: "5512345678", currency: "MXN", locale: "es-MX", decimals: 2 },
+    { code: "591", dialCode: "591", flag: "🇧🇴", name: "Bolivia", label: "BO +591", placeholder: "71234567", currency: "BOB", locale: "es-BO", decimals: 2 },
+    { code: "593", dialCode: "593", flag: "🇪🇨", name: "Ecuador", label: "EC +593", placeholder: "991234567", currency: "USD", locale: "es-EC", decimals: 2 },
+    { code: "56", dialCode: "56", flag: "🇨🇱", name: "Chile", label: "CL +56", placeholder: "912345678", currency: "CLP", locale: "es-CL", decimals: 0 },
+    { code: "51", dialCode: "51", flag: "🇵🇪", name: "Peru", label: "PE +51", placeholder: "912345678", currency: "PEN", locale: "es-PE", decimals: 2 },
+    { code: "54", dialCode: "54", flag: "🇦🇷", name: "Argentina", label: "AR +54", placeholder: "91123456789", currency: "ARS", locale: "es-AR", decimals: 2 },
+] as const;
+
+export type WaCountryCode = (typeof WA_COUNTRIES)[number]["code"];
+export type CatalogCurrency = (typeof WA_COUNTRIES)[number]["currency"];
+
+export const DEFAULT_WA_COUNTRY: WaCountryCode = "57";
+
+export function getWaCountry(country: WaCountryCode = DEFAULT_WA_COUNTRY) {
+    return WA_COUNTRIES.find((item) => item.code === country) ?? WA_COUNTRIES.find((item) => item.code === DEFAULT_WA_COUNTRY)!;
+}
+
+export function isWaCountryCode(value: string | null | undefined): value is WaCountryCode {
+    return WA_COUNTRIES.some((item) => item.code === value);
+}
+
+export function getCurrencyForWaCountry(country: WaCountryCode = DEFAULT_WA_COUNTRY): CatalogCurrency {
+    return getWaCountry(country).currency;
+}
+
+export function getCurrencyFormat(currency: CatalogCurrency) {
+    const country = WA_COUNTRIES.find((item) => item.currency === currency);
+    return {
+        locale: country?.locale ?? "es-CO",
+        decimals: country?.decimals ?? 2,
+    };
+}
 
 export function inferWaCountryCode(input: string): WaCountryCode {
     const digits = (input || "").replace(/[^\d]/g, "").replace(/^00/, "");
-    return digits.startsWith("52") ? "52" : "57";
+
+    const match = [...WA_COUNTRIES]
+        .sort((a, b) => b.dialCode.length - a.dialCode.length)
+        .find((country) => digits.startsWith(country.dialCode));
+
+    return match?.code ?? DEFAULT_WA_COUNTRY;
 }
 
 export function getWaNationalNumber(input: string, country: WaCountryCode) {
     const digits = (input || "").replace(/[^\d]/g, "").replace(/^00/, "");
-    const national = digits.startsWith(country) && digits.length > 10
-        ? digits.slice(country.length)
+    const dialCode = getWaCountry(country).dialCode;
+    const national = digits.startsWith(dialCode) && digits.length > dialCode.length + 5
+        ? digits.slice(dialCode.length)
         : digits;
     // Mexico dejo de usar el "1" entre +52 y el numero movil.
     return country === "52" && national.length === 11 && national.startsWith("1")
@@ -50,16 +89,18 @@ export function getWaNationalNumber(input: string, country: WaCountryCode) {
         : national;
 }
 
-export function normalizeWaNumber(input: string, defaultCountry: WaCountryCode = "57") {
+export function normalizeWaNumber(input: string, defaultCountry: WaCountryCode = DEFAULT_WA_COUNTRY) {
     if (!input) return "";
-
-    // deja solo dígitos (quita +, espacios, guiones, paréntesis)
+    const country = getWaCountry(defaultCountry);
+    const raw = input.trim();
+    let hasInternationalPrefix = raw.startsWith("+") || raw.startsWith("00");
     let digits = input.replace(/[^\d]/g, "");
 
-    // soporta números con prefijo 00 (ej: 0057...)
-    if (digits.startsWith("00")) digits = digits.slice(2);
+    if (digits.startsWith("00")) {
+        digits = digits.slice(2);
+        hasInternationalPrefix = true;
+    }
 
-    // Repara tanto 521XXXXXXXXXX como un numero nacional 1XXXXXXXXXX.
     if (defaultCountry === "52") {
         if (digits.length === 13 && digits.startsWith("521")) {
             digits = `52${digits.slice(3)}`;
@@ -68,41 +109,35 @@ export function normalizeWaNumber(input: string, defaultCountry: WaCountryCode =
         }
     }
 
-    // si ya viene con el país (57...), lo dejamos
-    if (digits.startsWith(defaultCountry)) return digits;
+    if (digits.startsWith(country.dialCode)) return digits;
 
-    // si parece celular colombiano (10 dígitos y empieza por 3), agrega 57
-    if (defaultCountry === "57" && digits.length === 10 && digits.startsWith("3")) {
-        return defaultCountry + digits;
+    if (hasInternationalPrefix && WA_COUNTRIES.some((item) => digits.startsWith(item.dialCode) && digits.length > item.dialCode.length + 5)) {
+        return digits;
     }
 
-    if (defaultCountry === "52" && digits.length === 10) {
-        return defaultCountry + digits;
-    }
+    if (digits.length >= 6) return country.dialCode + digits;
 
-    // si no puedes inferir, devuélvelo como está (o valida y muestra error)
     return digits;
 }
 
 export function formatWaNumber(
     input: string,
-    defaultCountry: WaCountryCode = "57",
+    defaultCountry: WaCountryCode = DEFAULT_WA_COUNTRY,
 ) {
     const normalized = normalizeWaNumber(input, defaultCountry);
     if (!normalized) return "";
 
-    const country = normalized.startsWith(defaultCountry)
+    const country = normalized.startsWith(getWaCountry(defaultCountry).dialCode)
         ? defaultCountry
         : inferWaCountryCode(normalized);
-    const national = normalized.startsWith(country)
-        ? normalized.slice(country.length)
+    const dialCode = getWaCountry(country).dialCode;
+    const national = normalized.startsWith(dialCode)
+        ? normalized.slice(dialCode.length)
         : normalized;
 
-    // Mexico y Colombia usan números nacionales de 10 dígitos. La agrupación
-    // 3-3-4 facilita leerlos sin alterar el valor usado por los enlaces.
     if (national.length === 10) {
-        return `+${country} ${national.slice(0, 3)}-${national.slice(3, 6)}-${national.slice(6)}`;
+        return `+${dialCode} ${national.slice(0, 3)}-${national.slice(3, 6)}-${national.slice(6)}`;
     }
 
-    return `+${normalized}`;
+    return `+${dialCode} ${national.replace(/(\d{3})(?=\d)/g, "$1 ").trim()}`;
 }

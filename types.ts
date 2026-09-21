@@ -1,4 +1,6 @@
 
+import type { WaCountryCode } from "./helper/social";
+
 export interface Product {
   id: string;
   name: string;
@@ -23,7 +25,7 @@ export type ImageFit = 'contain' | 'cover' | 'cover-top' | 'square-contain' | 't
 export interface StoreInfo {
   name: string;
   whatsapp: string;
-  whatsappCountryCode?: '52' | '57';
+  whatsappCountryCode?: WaCountryCode;
   facebook?: string;
   instagram?: string;
   additionalInfo?: string;

@@ -16,7 +16,7 @@ import {
   Search,
   Loader2,
 } from "lucide-react";
-import { compressImage, formatCurrency } from "../constants";
+import { CatalogCurrency, compressImage, formatCurrency } from "../constants";
 import { motion, AnimatePresence } from "framer-motion";
 import { RichTextEditor } from "./RichTextEditor";
 import { getImageUrl } from "@/helper/imageDB";
@@ -45,7 +45,7 @@ interface ProductManagerProps {
   allProductCount?: number;
   plan: PlanLimits;
   canUseWholesalePrice?: boolean;
-  currency?: 'MXN' | 'COP';
+  currency?: CatalogCurrency;
   headerAction?: React.ReactNode;
   onAdd: (product: Product) => void | Promise<boolean>;
   onRemove: (id: string) => void | Promise<boolean>;
