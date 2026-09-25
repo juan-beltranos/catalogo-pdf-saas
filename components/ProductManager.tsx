@@ -20,7 +20,7 @@ import { CatalogCurrency, compressImage, formatCurrency } from "../constants";
 import { motion, AnimatePresence } from "framer-motion";
 import { RichTextEditor } from "./RichTextEditor";
 import { getImageUrl } from "@/helper/imageDB";
-import { deleteCatalogImage, uploadCatalogImage } from "@/services/r2Storage";
+import { deleteCatalogImage, fetchCatalogAssetBlob, uploadCatalogImage } from "@/services/r2Storage";
 import { ProductThumb } from "./ProductThumb";
 import {
   DndContext,
@@ -220,6 +220,14 @@ const toBool = (v: any, defaultValue = false): boolean => {
 
   return defaultValue;
 };
+
+const blobToDataUrl = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 
 const normalizeHtml = (s: any): string => {
   const str = toStr(s);
@@ -980,39 +988,89 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     }
   };
 
-  const handleConfirmExcelImport = () => {
+  const handleConfirmExcelImport = async () => {
     if (!excelPreview) return;
     if (!plan.excel) { window.alert("La importación por Excel está disponible en Premium."); return; }
 
     setImportingExcel(true);
 
     try {
-      excelPreview.mapped.forEach((p, index) => {
-        const existingProduct = products.find(
-          (existing) => String(existing.id) === String(p.id)
-        );
+      let importedCount = 0;
+
+      const prepareImportedProduct = async (product: Product) => {
+        const image = (product.image || "").trim();
+        if (!/^https?:\/\//i.test(image)) {
+          return { product, uploadedImageKey: "" };
+        }
+
+        const blob = await fetchCatalogAssetBlob(image);
+        if (blob.type && !blob.type.startsWith("image/")) {
+          throw new Error(`La URL de imagen de "${product.name}" no devolvió una imagen válida.`);
+        }
+
+        const dataUrl = await blobToDataUrl(blob);
+        const asset = await uploadCatalogImage(dataUrl, "product");
+        return {
+          product: { ...product, image: asset.url, imageId: asset.key },
+          uploadedImageKey: asset.key,
+        };
+      };
+
+      for (const [index, p] of excelPreview.mapped.entries()) {
+        const importedSku = (p.sku || "").trim().toLowerCase();
+        const importedName = (p.name || "").trim().toLowerCase();
+        const importedCategory = (p.category || "").trim().toLowerCase();
+        const existingProduct = products.find((existing) => {
+          if (String(existing.id) === String(p.id)) return true;
+          const existingSku = (existing.sku || "").trim().toLowerCase();
+          if (importedSku && existingSku && importedSku === existingSku) return true;
+          return (
+            importedName !== "" &&
+            (existing.name || "").trim().toLowerCase() === importedName &&
+            (existing.category || "").trim().toLowerCase() === importedCategory
+          );
+        });
+        const { product: preparedProduct, uploadedImageKey } =
+          await prepareImportedProduct(p);
 
         if (existingProduct) {
-          const { id, ...updates } = p as Product;
+          const { id, ...updates } = preparedProduct as Product;
 
-          onUpdate(existingProduct.id, {
+          const saved = await onUpdate(existingProduct.id, {
             ...updates,
             order:
               typeof updates.order === "number"
                 ? updates.order
                 : existingProduct.order,
           } as Partial<Product>);
+          if (saved === false) {
+            if (uploadedImageKey) void deleteCatalogImage(uploadedImageKey).catch(console.warn);
+            return;
+          }
         } else {
-          onAdd({
-            ...p,
+          const saved = await onAdd({
+            ...preparedProduct,
+            id:
+              typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `${Date.now()}-${index}`,
             order:
-              typeof p.order === "number" ? p.order : products.length + index,
+              typeof preparedProduct.order === "number" ? preparedProduct.order : products.length + importedCount,
           });
+          if (saved === false) {
+            if (uploadedImageKey) void deleteCatalogImage(uploadedImageKey).catch(console.warn);
+            return;
+          }
+          importedCount += 1;
         }
-      });
+      }
 
       setExcelPreview(null);
       setCurrentPage(totalPages);
+    } catch (error) {
+      console.error("Error importando Excel:", error);
+      const message = error instanceof Error ? error.message : "No se pudo importar el Excel.";
+      window.alert(message);
     } finally {
       setImportingExcel(false);
     }

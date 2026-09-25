@@ -148,7 +148,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
           : productsPerPage <= 3
             ? 430
             : productsPerPage <= 4
-              ? 350
+              ? 300
               : productsPerPage <= 6
                 ? 260
                 : productsPerPage <= 8
@@ -157,7 +157,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
                     ? 185
                     : 160;
 
-      const maxByWidth = Math.round(columnWidth * 0.82);
+      const maxByWidth = Math.round(columnWidth * 0.94);
       const max = Math.max(120, Math.min(maxByCount, maxByWidth));
       const min = Math.max(105, Math.round(max * 0.78));
 
@@ -262,7 +262,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
       if (productsPerPage <= 2)
         return { title: 32, description: 20, price: 20, badge: 16, action: 16 };
       if (productsPerPage <= 4)
-        return { title: 28, description: 18, price: 18, badge: 15, action: 15 };
+        return { title: 22, description: 14, price: 16, badge: 13, action: 13 };
       if (productsPerPage <= 6)
         return { title: 23, description: 16, price: 16, badge: 13, action: 13 };
       return { title: 18, description: 13, price: 14, badge: 12, action: 12 };
@@ -493,14 +493,42 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
     };
 
     const blobToPdfDataUrl = async (blob: Blob) => {
+      try {
+        if ("createImageBitmap" in window) {
+          const bitmap = await createImageBitmap(blob);
+          const naturalW = bitmap.width || 1;
+          const naturalH = bitmap.height || 1;
+          const maxSide = isIOS ? 640 : 860;
+          const scale = Math.min(1, maxSide / Math.max(naturalW, naturalH));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(naturalW * scale));
+          canvas.height = Math.max(1, Math.round(naturalH * scale));
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("No se pudo preparar canvas para imagen");
+
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          bitmap.close();
+
+          return {
+            src: canvas.toDataURL("image/jpeg", isIOS ? 0.7 : 0.78),
+            naturalWidth: canvas.width,
+            naturalHeight: canvas.height,
+          };
+        }
+      } catch (error) {
+        console.warn("No se pudo convertir imagen con createImageBitmap:", error);
+      }
+
       const url = URL.createObjectURL(blob);
       objectUrlsToRevoke.push(url);
 
       try {
         return await imageSourceToPdfDataUrl(url);
-      } catch {
-        const src = await blobToDataUrl(blob);
-        return { src, naturalWidth: 1, naturalHeight: 1 };
+      } catch (error) {
+        console.warn("No se pudo convertir imagen para PDF:", error);
+        return { src: "", naturalWidth: 1, naturalHeight: 1 };
       }
     };
 
@@ -904,8 +932,9 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
               ? await (await fetch(source)).blob()
               : await safeFetchBlob(source, 8000);
             return await blobToPdfDataUrl(blob);
-          } catch {
-            return { src: source, naturalWidth: 1, naturalHeight: 1 };
+          } catch (error) {
+            console.warn("No se pudo convertir imagen externa para PDF:", error);
+            return { src: "", naturalWidth: 1, naturalHeight: 1 };
           }
         })();
 
@@ -1406,13 +1435,11 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         );
       };
 
-      const getImageFormatForPdf = (src: string): "PNG" | "JPEG" | "WEBP" => {
+      const getImageFormatForPdf = (src: string): "PNG" | "JPEG" => {
         const value = src.toLowerCase();
 
         if (value.startsWith("data:image/png") || value.endsWith(".png"))
           return "PNG";
-        if (value.startsWith("data:image/webp") || value.endsWith(".webp"))
-          return "WEBP";
 
         return "JPEG";
       };
@@ -2275,15 +2302,15 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
                 if (overlapsTop) {
                   topInset = Math.max(
                     topInset,
-                    badgeRect.bottom - mediaRect.top + 6,
+                    badgeRect.bottom - mediaRect.top + 2,
                   );
                 }
               });
 
-              const sideInset = Math.max(8, Math.round(mediaRect.width * 0.08));
+              const sideInset = Math.max(2, Math.round(mediaRect.width * 0.02));
               const bottomInset = Math.max(
-                8,
-                Math.round(mediaRect.height * 0.08),
+                2,
+                Math.round(mediaRect.height * 0.02),
               );
               const width = Math.max(1, mediaRect.width - sideInset * 2);
               const height = Math.max(
@@ -2477,7 +2504,8 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         collapseGridParents(page);
 
         await waitMs(isIOS ? 200 : 50);
-        const shouldExpandPageCards = true;
+        const shouldExpandPageCards =
+          productsAddedOnPage >= PDF_PRODUCTS_PER_PAGE || rowIndex >= rows.length;
 
         if (!pageWasCompacted && shouldExpandPageCards) {
           await expandPageToUseSpace(page, grid, pageHeightCssPx);
