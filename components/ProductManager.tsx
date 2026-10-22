@@ -298,6 +298,15 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
   } | null>(null);
 
   const [importingExcel, setImportingExcel] = useState(false);
+  const [excelImportProgress, setExcelImportProgress] = useState({
+    completed: 0,
+    total: 0,
+    currentProduct: "",
+  });
+  const [excelImportStatus, setExcelImportStatus] = useState<
+    "idle" | "importing" | "success" | "error"
+  >("idle");
+  const [excelImportError, setExcelImportError] = useState("");
   const excelInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const sensors = useSensors(
@@ -991,6 +1000,9 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         return;
       }
 
+      setExcelImportStatus("idle");
+      setExcelImportError("");
+      setExcelImportProgress({ completed: 0, total: mapped.length, currentProduct: "" });
       setExcelPreview({ rows, mapped, fileName: file.name });
     } catch (err) {
       console.error("Error leyendo Excel:", err);
@@ -1003,6 +1015,13 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     if (!plan.excel) { window.alert("La importación por Excel está disponible en Premium."); return; }
 
     setImportingExcel(true);
+    setExcelImportStatus("importing");
+    setExcelImportError("");
+    setExcelImportProgress({
+      completed: 0,
+      total: excelPreview.mapped.length,
+      currentProduct: excelPreview.mapped[0]?.name || "",
+    });
 
     try {
       let importedCount = 0;
@@ -1039,6 +1058,10 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
       };
 
       for (const [index, p] of excelPreview.mapped.entries()) {
+        setExcelImportProgress((progress) => ({
+          ...progress,
+          currentProduct: p.name,
+        }));
         const importedSku = (p.sku || "").trim().toLowerCase();
         const importedName = (p.name || "").trim().toLowerCase();
         const importedCategory = (p.category || "").trim().toLowerCase();
@@ -1073,7 +1096,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
           } as Partial<Product>);
           if (saved === false) {
             if (uploadedImageKey) void deleteCatalogImage(uploadedImageKey).catch(console.warn);
-            return;
+            throw new Error(`No se pudo guardar "${p.name}". La importación se detuvo.`);
           }
         } else {
           const saved = await onAdd({
@@ -1087,14 +1110,22 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
           });
           if (saved === false) {
             if (uploadedImageKey) void deleteCatalogImage(uploadedImageKey).catch(console.warn);
-            return;
+            throw new Error(`No se pudo guardar "${p.name}". La importación se detuvo.`);
           }
           importedCount += 1;
         }
+
+        setExcelImportProgress({
+          completed: index + 1,
+          total: excelPreview.mapped.length,
+          currentProduct: p.name,
+        });
       }
 
-      setExcelPreview(null);
+      setExcelImportStatus("success");
       setCurrentPage(totalPages);
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
+      setExcelPreview(null);
       if (productsWithoutImportedImages.length) {
         const shownNames = productsWithoutImportedImages.slice(0, 5);
         const remainingCount = productsWithoutImportedImages.length - shownNames.length;
@@ -1105,7 +1136,8 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     } catch (error) {
       console.error("Error importando Excel:", error);
       const message = error instanceof Error ? error.message : "No se pudo importar el Excel.";
-      window.alert(message);
+      setExcelImportStatus("error");
+      setExcelImportError(message);
     } finally {
       setImportingExcel(false);
     }
@@ -1610,7 +1642,9 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4"
-            onClick={() => setExcelPreview(null)}
+            onClick={() => {
+              if (!importingExcel) setExcelPreview(null);
+            }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -1633,7 +1667,9 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
 
                 <button
                   onClick={() => setExcelPreview(null)}
-                  className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
+                  disabled={importingExcel}
+                  aria-label="Cerrar importación"
+                  className="p-2 rounded-full hover:bg-slate-100 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1737,10 +1773,90 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                 </p>
               </div>
 
+              {excelImportStatus !== "idle" && (
+                <div
+                  className={`px-6 py-4 border-t ${
+                    excelImportStatus === "error"
+                      ? "bg-red-50 border-red-100"
+                      : excelImportStatus === "success"
+                        ? "bg-emerald-50 border-emerald-100"
+                        : "bg-blue-50 border-blue-100"
+                  }`}
+                  aria-live="polite"
+                >
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <div className="flex min-w-0 items-center gap-2 font-semibold">
+                      {excelImportStatus === "importing" && (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-600" />
+                      )}
+                      {excelImportStatus === "success" && (
+                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                      )}
+                      {excelImportStatus === "error" && (
+                        <X className="h-4 w-4 shrink-0 text-red-600" />
+                      )}
+                      <span
+                        className={
+                          excelImportStatus === "error"
+                            ? "text-red-800"
+                            : excelImportStatus === "success"
+                              ? "text-emerald-800"
+                              : "truncate text-blue-800"
+                        }
+                      >
+                        {excelImportStatus === "error"
+                          ? excelImportError
+                          : excelImportStatus === "success"
+                            ? `Importación completada: ${excelImportProgress.total} productos guardados.`
+                            : `Importando ${excelImportProgress.completed + 1} de ${excelImportProgress.total}: ${excelImportProgress.currentProduct}`}
+                      </span>
+                    </div>
+                    {excelImportStatus !== "error" && (
+                      <span className="shrink-0 font-bold tabular-nums text-slate-700">
+                        {excelImportStatus === "success"
+                          ? "100%"
+                          : `${Math.round(
+                              (excelImportProgress.completed /
+                                Math.max(1, excelImportProgress.total)) *
+                                100
+                            )}%`}
+                      </span>
+                    )}
+                  </div>
+
+                  {excelImportStatus !== "error" && (
+                    <div
+                      className="mt-3 h-2 overflow-hidden rounded-full bg-white/80"
+                      role="progressbar"
+                      aria-label="Progreso de importación"
+                      aria-valuemin={0}
+                      aria-valuemax={excelImportProgress.total}
+                      aria-valuenow={excelImportProgress.completed}
+                    >
+                      <div
+                        className={`h-full rounded-full transition-[width] duration-300 ${
+                          excelImportStatus === "success" ? "bg-emerald-500" : "bg-blue-600"
+                        }`}
+                        style={{
+                          width: `${
+                            excelImportStatus === "success"
+                              ? 100
+                              : (excelImportProgress.completed /
+                                  Math.max(1, excelImportProgress.total)) *
+                                100
+                          }%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
                 <button
                   onClick={() => setExcelPreview(null)}
-                  className="flex-1 h-11 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition"
+                  disabled={importingExcel}
+                  className="flex-1 h-11 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -1750,8 +1866,17 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                   disabled={importingExcel}
                   className="flex-1 h-11 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  <Check className="w-4 h-4" />
-                  Importar {excelPreview.mapped.length} productos
+                  {importingExcel ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Importando…
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      {excelImportStatus === "error" ? "Reintentar importación" : `Importar ${excelPreview.mapped.length} productos`}
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>
