@@ -111,11 +111,6 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
     };
 
     const PDF_GRID_COLUMNS = getPdfGridColumns(PDF_PRODUCTS_PER_PAGE);
-    const PDF_ROWS_PER_PAGE = Math.max(
-      1,
-      Math.ceil(PDF_PRODUCTS_PER_PAGE / PDF_GRID_COLUMNS),
-    );
-
     const getPdfGridGap = (productsPerPage: number) => {
       if (productsPerPage <= 1) return { column: 0, row: 0 };
       if (productsPerPage <= 2) return { column: 24, row: 26 };
@@ -1506,22 +1501,6 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         clone.querySelectorAll(".product-pdf"),
       ) as HTMLElement[];
 
-      type ProductRow = {
-        top: number;
-        cards: HTMLElement[];
-      };
-
-      // Las filas del PDF NO se calculan con offsetTop del navegador móvil.
-      // Se crean por orden de productos y por la cantidad de columnas configurada,
-      // para que el PDF sea igual en escritorio y móvil.
-      const rows: ProductRow[] = [];
-      for (let i = 0; i < cards.length; i += PDF_GRID_COLUMNS) {
-        rows.push({
-          top: i,
-          cards: cards.slice(i, i + PDF_GRID_COLUMNS),
-        });
-      }
-
       const styleProductCardForPdf = (card: HTMLElement) => {
         card.style.breakInside = "avoid";
         card.style.pageBreakInside = "avoid";
@@ -1634,6 +1613,70 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         }
 
         return getPdfContentHeight(page, grid) <= maxHeightPx;
+      };
+
+      const scaleGridToFitPage = async (
+        page: HTMLElement,
+        grid: HTMLElement,
+        maxHeightPx: number,
+      ) => {
+        grid.style.transform = "none";
+        grid.style.transformOrigin = "top left";
+        grid.style.marginBottom = "0";
+        grid.style.width = "100%";
+        grid.style.maxWidth = "none";
+
+        await waitMs(isIOS ? 80 : 16);
+        collapseGridParents(page);
+
+        let contentHeight = getPdfContentHeight(page, grid);
+        if (contentHeight <= maxHeightPx) return;
+
+        // El número configurado de productos manda sobre la altura natural de
+        // las tarjetas. Cuando el contenido es más alto que A4, reducimos el
+        // grid completo (no lo repartimos en otra página) y compensamos su ancho
+        // y su espacio en el flujo para conservar todas las columnas y el footer.
+        let scale = Math.min(1, Math.max(0.2, maxHeightPx / contentHeight));
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          grid.style.transform = "none";
+          grid.style.marginBottom = "0";
+          grid.style.width = `${100 / scale}%`;
+
+          await waitMs(isIOS ? 80 : 16);
+
+          const logicalGridHeight = Math.max(
+            1,
+            grid.getBoundingClientRect().height,
+          );
+          const chromeHeight = Math.max(
+            0,
+            getPdfContentHeight(page, grid) - logicalGridHeight,
+          );
+          const availableGridHeight = Math.max(1, maxHeightPx - chromeHeight - 6);
+          const nextScale = Math.min(
+            1,
+            Math.max(0.2, availableGridHeight / logicalGridHeight),
+          );
+
+          scale = Math.min(scale, nextScale);
+          grid.style.width = `${100 / scale}%`;
+          await waitMs(isIOS ? 80 : 16);
+
+          const finalLogicalHeight = Math.max(
+            1,
+            grid.getBoundingClientRect().height,
+          );
+          grid.style.transform = `scale(${scale})`;
+          grid.style.marginBottom = `${-finalLogicalHeight * (1 - scale)}px`;
+
+          await waitMs(isIOS ? 80 : 16);
+          collapseGridParents(page);
+          contentHeight = getPdfContentHeight(page, grid);
+          if (contentHeight <= maxHeightPx) return;
+
+          scale = Math.max(0.2, scale * (maxHeightPx / contentHeight) * 0.985);
+        }
       };
 
       const scalePageCardsForPdf = (grid: HTMLElement, factor: number) => {
@@ -2442,7 +2485,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
       };
 
       let pageIndex = 0;
-      let rowIndex = 0;
+      let cardIndex = 0;
       const totalPagesEstimate = Math.max(
         1,
         Math.ceil(cards.length / PDF_PRODUCTS_PER_PAGE),
@@ -2450,56 +2493,30 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
 
       updateProgress(75, `Renderizando página 1 de ${totalPagesEstimate}...`);
 
-      while (rowIndex < rows.length) {
+      while (cardIndex < cards.length) {
         const { page, grid } = makePage(pageIndex === 0);
 
-        let rowsAdded = 0;
+        const pageCards = cards.slice(
+          cardIndex,
+          cardIndex + PDF_PRODUCTS_PER_PAGE,
+        );
+        const productsAddedOnPage = pageCards.length;
+
+        pageCards.forEach((card) => {
+          const clonedCard = card.cloneNode(true) as HTMLElement;
+          styleProductCardForPdf(clonedCard);
+          grid.appendChild(clonedCard);
+        });
+        cardIndex += productsAddedOnPage;
+
+        await waitMs(isIOS ? 80 : 16); // ── FIX iOS: tiempo para recalcular layout
+        collapseGridParents(page);
+
         let pageWasCompacted = false;
-        let productsAddedOnPage = 0;
-
-        while (rowIndex < rows.length) {
-          if (rowsAdded >= PDF_ROWS_PER_PAGE) break;
-          if (productsAddedOnPage >= PDF_PRODUCTS_PER_PAGE) break;
-
-          const currentRow = rows[rowIndex];
-          const remainingSlots = PDF_PRODUCTS_PER_PAGE - productsAddedOnPage;
-          const rowCardsForPage = currentRow.cards.slice(0, remainingSlots);
-          const leftoverRowCards = currentRow.cards.slice(remainingSlots);
-          if (rowCardsForPage.length <= 0) break;
-
-          const rowClones: HTMLElement[] = rowCardsForPage.map((card) => {
-            const clonedCard = card.cloneNode(true) as HTMLElement;
-            styleProductCardForPdf(clonedCard);
-            return clonedCard;
-          });
-
-          rowClones.forEach((clonedCard) => grid.appendChild(clonedCard));
-
-          await waitMs(isIOS ? 80 : 16); // ── FIX iOS: tiempo para recalcular layout
-
-          collapseGridParents(page);
-          let currentHeight = getPdfContentHeight(page, grid);
-
-          if (currentHeight > pageHeightCssPx) {
-            const fitted = await compactPageToFit(page, grid, pageHeightCssPx);
-            currentHeight = getPdfContentHeight(page, grid);
-            pageWasCompacted = true;
-
-            if (rowsAdded > 0 && (!fitted || currentHeight > pageHeightCssPx)) {
-              rowClones.forEach((clonedCard) => clonedCard.remove());
-              break;
-            }
-          }
-
-          rowsAdded++;
-          productsAddedOnPage += rowCardsForPage.length;
-
-          if (leftoverRowCards.length > 0) {
-            rows[rowIndex] = { ...currentRow, cards: leftoverRowCards };
-            break;
-          }
-
-          rowIndex++;
+        if (getPdfContentHeight(page, grid) > pageHeightCssPx) {
+          pageWasCompacted = true;
+          await compactPageToFit(page, grid, pageHeightCssPx);
+          await scaleGridToFitPage(page, grid, pageHeightCssPx);
         }
 
         controlHeaderFooter(page, pageIndex === 0, true);
@@ -2507,7 +2524,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
 
         await waitMs(isIOS ? 200 : 50);
         const shouldExpandPageCards =
-          productsAddedOnPage >= PDF_PRODUCTS_PER_PAGE || rowIndex >= rows.length;
+          productsAddedOnPage >= PDF_PRODUCTS_PER_PAGE || cardIndex >= cards.length;
 
         if (!pageWasCompacted && shouldExpandPageCards) {
           await expandPageToUseSpace(page, grid, pageHeightCssPx);
