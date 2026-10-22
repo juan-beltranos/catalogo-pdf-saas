@@ -996,23 +996,35 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
 
     try {
       let importedCount = 0;
+      const productsWithoutImportedImages: string[] = [];
 
       const prepareImportedProduct = async (product: Product) => {
         const image = (product.image || "").trim();
         if (!/^https?:\/\//i.test(image)) {
-          return { product, uploadedImageKey: "" };
+          return { product, uploadedImageKey: "", imageImportFailed: false };
         }
 
-        const blob = await fetchCatalogAssetBlob(image);
-        if (blob.type && !blob.type.startsWith("image/")) {
-          throw new Error(`La URL de imagen de "${product.name}" no devolvió una imagen válida.`);
+        let dataUrl: string;
+        try {
+          const blob = await fetchCatalogAssetBlob(image);
+          if (blob.type && !blob.type.startsWith("image/")) {
+            throw new Error("La URL no devolvió una imagen válida.");
+          }
+          dataUrl = await blobToDataUrl(blob);
+        } catch (error) {
+          console.warn(`No fue posible importar la imagen de "${product.name}".`, error);
+          return {
+            product: { ...product, image: "", imageId: "", imageUnavailable: true },
+            uploadedImageKey: "",
+            imageImportFailed: true,
+          };
         }
 
-        const dataUrl = await blobToDataUrl(blob);
         const asset = await uploadCatalogImage(dataUrl, "product");
         return {
           product: { ...product, image: asset.url, imageId: asset.key },
           uploadedImageKey: asset.key,
+          imageImportFailed: false,
         };
       };
 
@@ -1030,11 +1042,17 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
             (existing.category || "").trim().toLowerCase() === importedCategory
           );
         });
-        const { product: preparedProduct, uploadedImageKey } =
+        const { product: preparedProduct, uploadedImageKey, imageImportFailed } =
           await prepareImportedProduct(p);
+        if (imageImportFailed) productsWithoutImportedImages.push(p.name);
 
         if (existingProduct) {
           const { id, ...updates } = preparedProduct as Product;
+          if (imageImportFailed) {
+            delete updates.image;
+            delete updates.imageId;
+            delete updates.imageUnavailable;
+          }
 
           const saved = await onUpdate(existingProduct.id, {
             ...updates,
@@ -1067,6 +1085,13 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
 
       setExcelPreview(null);
       setCurrentPage(totalPages);
+      if (productsWithoutImportedImages.length) {
+        const shownNames = productsWithoutImportedImages.slice(0, 5);
+        const remainingCount = productsWithoutImportedImages.length - shownNames.length;
+        window.alert(
+          `Se importaron los productos, pero no se pudieron copiar las imágenes de ${productsWithoutImportedImages.length} producto(s). Revisa que las URL sean válidas y permitan descargar la imagen.\n\n${shownNames.join("\n")}${remainingCount > 0 ? `\nY ${remainingCount} más.` : ""}`
+        );
+      }
     } catch (error) {
       console.error("Error importando Excel:", error);
       const message = error instanceof Error ? error.message : "No se pudo importar el Excel.";

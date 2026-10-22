@@ -33,6 +33,7 @@ export interface StoreInfo {
   logo?: string;
   logoKey?: string;
   templateId: TemplateId;
+  showPrices?: boolean;
   showQuantityInPdf?: boolean;
   showWatermarkInPdf?: boolean;
   imageFit?: ImageFit;

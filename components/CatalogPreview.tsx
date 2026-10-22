@@ -39,6 +39,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
   const {
     templateId = "minimalist",
     color: primaryColor = "#3b82f6",
+    showPrices = true,
     showQuantityInPdf = false,
   } = storeInfo;
 
@@ -101,7 +102,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
     const text =
       `Hola 👋, quiero hacer un pedido:\n` +
       `• Producto: ${product.name}\n` +
-      `• Precio: ${formatCurrency(product.price, currency)}\n` +
+      (showPrices ? `• Precio: ${formatCurrency(product.price, currency)}\n` : "") +
       `¿Me confirmas disponibilidad y tiempo de entrega?`;
 
     return `https://wa.me/${wa}?text=${encodeURIComponent(text)}`;
@@ -415,7 +416,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
         data-pdf-link="product"
         data-product-id={product.id}
         data-product-name={product.name}
-        data-product-price={String(product.price ?? "")}
+        data-product-price={showPrices ? String(product.price ?? "") : ""}
         data-product-sku={(product as any).sku || ""}
         title="Haz clic para pedir por WhatsApp"
       >
@@ -470,32 +471,34 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
         </div>
 
         <div className={theme.body}>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="flex flex-col items-start">
-              {(product as any).originalPrice &&
-                (product as any).originalPrice > product.price && (
-                  <div className="mb-3 leading-none">
-                    <span className="text-xs text-slate-400 block">
-                      Antes: {formatCurrency((product as any).originalPrice, currency)}
-                    </span>
-                  </div>
-                )}
+          {(showPrices || (showQuantityInPdf && (product.quantity ?? 0) > 0)) && (
+            <div className="mb-3 flex items-center justify-between gap-3">
+              {showPrices && <div className="flex flex-col items-start">
+                {(product as any).originalPrice &&
+                  (product as any).originalPrice > product.price && (
+                    <div className="mb-3 leading-none">
+                      <span className="text-xs text-slate-400 block">
+                        Antes: {formatCurrency((product as any).originalPrice, currency)}
+                      </span>
+                    </div>
+                  )}
 
-              <div
-                data-price-inline="true"
-                className={theme.priceInline}
-                style={inlineTheme.priceStyle}
-              >
-                <span>{formatCurrency(product.price, currency)}</span>
-              </div>
+                <div
+                  data-price-inline="true"
+                  className={theme.priceInline}
+                  style={inlineTheme.priceStyle}
+                >
+                  <span>{formatCurrency(product.price, currency)}</span>
+                </div>
+              </div>}
+
+              {showQuantityInPdf && (product.quantity ?? 0) > 0 && (
+                <span className={theme.stockBadge} data-stock-badge="true">
+                  Stock: <span>{product.quantity}</span>
+                </span>
+              )}
             </div>
-
-            {showQuantityInPdf && (product.quantity ?? 0) > 0 && (
-              <span className={theme.stockBadge} data-stock-badge="true">
-                Stock: <span>{product.quantity}</span>
-              </span>
-            )}
-          </div>
+          )}
 
           <h3 className={theme.title}>{product.name}</h3>
 
@@ -940,7 +943,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
                   data-pdf-link="product"
                   data-product-id={product.id}
                   data-product-name={product.name}
-                  data-product-price={String(product.price ?? "")}
+                  data-product-price={showPrices ? String(product.price ?? "") : ""}
                   data-product-sku={(product as any).sku || ""}
                   title="Haz clic para pedir por WhatsApp"
                 >
@@ -999,36 +1002,38 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
                   </div>
 
                   <div className={theme.body}>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div className="flex flex-col items-start">
-                        {(product as any).originalPrice &&
-                          (product as any).originalPrice > product.price && (
-                            <div className="mb-3 leading-none">
-                              <span className="text-xs text-slate-400 block">
-                                Antes:{" "}
-                                {formatCurrency((product as any).originalPrice, currency)}
-                              </span>
-                            </div>
-                          )}
+                    {(showPrices || (showQuantityInPdf && (product.quantity ?? 0) > 0)) && (
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        {showPrices && <div className="flex flex-col items-start">
+                          {(product as any).originalPrice &&
+                            (product as any).originalPrice > product.price && (
+                              <div className="mb-3 leading-none">
+                                <span className="text-xs text-slate-400 block">
+                                  Antes:{" "}
+                                  {formatCurrency((product as any).originalPrice, currency)}
+                                </span>
+                              </div>
+                            )}
 
-                        <div
-                          data-price-inline="true"
-                          className={theme.priceInline}
-                          style={inlineTheme.priceStyle}
-                        >
-                          <span>{formatCurrency(product.price, currency)}</span>
-                        </div>
+                          <div
+                            data-price-inline="true"
+                            className={theme.priceInline}
+                            style={inlineTheme.priceStyle}
+                          >
+                            <span>{formatCurrency(product.price, currency)}</span>
+                          </div>
+                        </div>}
+
+                        {showQuantityInPdf && (product.quantity ?? 0) > 0 && (
+                          <span
+                            className={theme.stockBadge}
+                            data-stock-badge="true"
+                          >
+                            Stock: <span>{product.quantity}</span>
+                          </span>
+                        )}
                       </div>
-
-                      {showQuantityInPdf && (product.quantity ?? 0) > 0 && (
-                        <span
-                          className={theme.stockBadge}
-                          data-stock-badge="true"
-                        >
-                          Stock: <span>{product.quantity}</span>
-                        </span>
-                      )}
-                    </div>
+                    )}
 
                     <h3 className={theme.title}>{product.name}</h3>
 

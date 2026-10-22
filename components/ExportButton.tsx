@@ -2215,9 +2215,11 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
           let url = (el as HTMLAnchorElement).getAttribute?.("href") || "";
 
           if (businessWa) {
-            const msg = `Hola 👋, quiero hacer un pedido:\n• Producto: ${productTitle}\n• Precio: ${formatCurrency(
-              Number(price || 0), currency,
-            )}`;
+            const msg =
+              `Hola 👋, quiero hacer un pedido:\n• Producto: ${productTitle}` +
+              (price
+                ? `\n• Precio: ${formatCurrency(Number(price), currency)}`
+                : "");
 
             url = `https://wa.me/${businessWa}?text=${encodeWaText(msg)}`;
           }

@@ -386,6 +386,31 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
           </div>
         </div>
 
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div>
+            <label htmlFor="showPrices" className="block text-sm font-semibold text-slate-700">
+              Mostrar precios en el cat&aacute;logo
+            </label>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Se aplica a la vista previa y al PDF exportado.
+            </p>
+          </div>
+          <label className="relative inline-flex shrink-0 cursor-pointer items-center">
+            <input
+              id="showPrices"
+              type="checkbox"
+              role="switch"
+              checked={storeInfo.showPrices !== false}
+              onChange={(e) => onUpdate({ showPrices: e.target.checked })}
+              className="peer sr-only"
+            />
+            <span className="h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2" />
+            <span className="sr-only">
+              {storeInfo.showPrices !== false ? "Ocultar precios" : "Mostrar precios"}
+            </span>
+          </label>
+        </div>
+
         <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
           <input
             id="showQuantityInPdf"

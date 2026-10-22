@@ -9,7 +9,7 @@ import { getPlan, PlanLimits } from "../lib/plans";
 import { Entitlements, FeatureOverride, getEffectiveEntitlements } from "../lib/entitlements";
 import { DEFAULT_WA_COUNTRY, isWaCountryCode } from "@/helper/social";
 
-const DEFAULT_STORE: StoreInfo = { name: "", whatsapp: "", color: "#3b82f6", templateId: "minimalist", whatsappCountryCode: DEFAULT_WA_COUNTRY, headerMode: "color", pdfProductsPerPage: 4 };
+const DEFAULT_STORE: StoreInfo = { name: "", whatsapp: "", color: "#3b82f6", templateId: "minimalist", whatsappCountryCode: DEFAULT_WA_COUNTRY, headerMode: "color", pdfProductsPerPage: 4, showPrices: true };
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const errorMessage = (cause: unknown) => {
   if (cause instanceof Error) return cause.message;
@@ -31,7 +31,7 @@ const storeToBusiness = (store: StoreInfo) => ({
   color: store.color, template_id: store.templateId, logo_url: store.logo || null, logo_key: store.logoKey || null,
   header_image_url: store.headerImage || null, header_image_key: store.headerImageKey || null,
   cover_image_url: store.coverImage || null, cover_image_key: store.coverImageKey || null,
-  settings: { showQuantityInPdf: !!store.showQuantityInPdf, showWatermarkInPdf: !!store.showWatermarkInPdf,
+  settings: { showPrices: store.showPrices !== false, showQuantityInPdf: !!store.showQuantityInPdf, showWatermarkInPdf: !!store.showWatermarkInPdf,
     imageFit: store.imageFit || "contain", headerMode: store.headerMode || "color", pdfProductsPerPage: store.pdfProductsPerPage || 4 },
 });
 
