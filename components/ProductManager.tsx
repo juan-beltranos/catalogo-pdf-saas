@@ -289,6 +289,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [showAllForOrdering, setShowAllForOrdering] = useState(false);
 
   const [excelPreview, setExcelPreview] = useState<{
     rows: ExcelRow[];
@@ -437,6 +438,10 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     return orderedProducts.slice(pageStart, pageEnd);
   }, [orderedProducts, pageStart, pageEnd]);
 
+  const displayedProducts = showAllForOrdering
+    ? orderedProducts
+    : paginatedProducts;
+
   useEffect(() => {
     setCurrentPage(1);
   }, [categoryFilter, searchTerm]);
@@ -452,23 +457,28 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     setCurrentPage(nextPage);
   };
 
+  const persistOrder = (previousIds: string[], nextIds: string[]) => {
+    nextIds.forEach((id, index) => {
+      if (previousIds[index] !== id) {
+        void onUpdate(id, { order: index });
+      }
+    });
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
     const ids = orderedProducts.map((p) => p.id);
     const oldIndex = ids.indexOf(String(active.id));
+    if (oldIndex === -1) return;
+
     const newIndex = ids.indexOf(String(over.id));
 
-    if (oldIndex === -1 || newIndex === -1) return;
+    if (newIndex === -1) return;
 
     const newIds = arrayMove(ids, oldIndex, newIndex);
-
-    newIds.forEach((id, index) => {
-      if (ids[index] !== id) {
-        onUpdate(id, { order: index });
-      }
-    });
+    persistOrder(ids, newIds);
   };
 
   const resetForm = () => {
@@ -1294,7 +1304,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
   const isEditing = editingId !== null;
 
   const renderPagination = () => {
-    if (totalProducts <= PRODUCTS_PER_PAGE) return null;
+    if (showAllForOrdering || totalProducts <= PRODUCTS_PER_PAGE) return null;
 
     const visiblePages = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
       (page) =>
@@ -2136,6 +2146,50 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         )}
       </AnimatePresence>
 
+      {products.length > PRODUCTS_PER_PAGE && (
+        <div className={`flex flex-col gap-3 rounded-2xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
+          showAllForOrdering
+            ? "border-blue-300 bg-blue-50"
+            : "border-slate-200 bg-white"
+        }`}>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">
+              {showAllForOrdering
+                ? `Ordenando los ${totalProducts} productos en una sola vista`
+                : "¿Necesitas mover productos entre páginas?"}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {showAllForOrdering
+                ? "Arrastra cualquier producto a la posición que quieras. El orden se guarda automáticamente."
+                : "Muestra todos los productos juntos para ordenarlos libremente."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (showAllForOrdering) {
+                setShowAllForOrdering(false);
+                setCurrentPage(1);
+                return;
+              }
+
+              setCategoryFilter("__ALL__");
+              setSearchTerm("");
+              setCurrentPage(1);
+              setShowAllForOrdering(true);
+            }}
+            className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${
+              showAllForOrdering
+                ? "border border-blue-200 bg-white text-blue-700 hover:bg-blue-100"
+                : "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+            }`}
+          >
+            <GripVertical className="h-4 w-4" />
+            {showAllForOrdering ? "Volver a la paginación" : `Ordenar todos (${products.length})`}
+          </button>
+        </div>
+      )}
+
       {renderPagination()}
 
       {/* Grid de productos */}
@@ -2145,19 +2199,21 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={paginatedProducts.map((p) => p.id)}
+          items={displayedProducts.map((p) => p.id)}
           strategy={rectSortingStrategy}
         >
           {totalProducts > 0 && (
             <p className="text-xs text-slate-400 mb-2">
               Arrastra el ícono <span className="font-semibold">☰</span> para
-              ordenar los productos visibles en esta página.
+              {showAllForOrdering
+                ? " colocar cualquier producto en la posición que quieras."
+                : " ordenar los productos visibles en esta página."}
             </p>
           )}
 
           <div className="mx-auto grid w-[90%] grid-cols-1 gap-4 sm:w-full sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <AnimatePresence mode="popLayout">
-              {paginatedProducts.map((product) => {
+              {displayedProducts.map((product) => {
                 const originalPrice =
                   typeof (product as any).originalPrice === "number"
                     ? (product as any).originalPrice
