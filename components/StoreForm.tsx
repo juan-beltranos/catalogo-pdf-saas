@@ -9,6 +9,7 @@ interface StoreFormProps {
   storeInfo: StoreInfo;
   onUpdate: (info: Partial<StoreInfo>) => void;
   canCustomize?: boolean;
+  localOnly?: boolean;
 }
 
 const countryFlagStyle: Record<WaCountryCode, React.CSSProperties> = {
@@ -29,7 +30,7 @@ const CountryFlag: React.FC<{ country: WaCountryCode; className?: string }> = ({
   />
 );
 
-export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCustomize = false }) => {
+export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCustomize = false, localOnly = false }) => {
   const whatsappCountry = storeInfo.whatsappCountryCode ?? inferWaCountryCode(storeInfo.whatsapp);
   const selectedWhatsappCountry = getWaCountry(whatsappCountry);
   const [countryMenuOpen, setCountryMenuOpen] = React.useState(false);
@@ -48,10 +49,10 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
     if (file) {
       try {
         const base64 = await compressImage(file);
-        const asset = await uploadCatalogImage(base64, 'logo');
+        const asset = localOnly ? { url: base64, key: "" } : await uploadCatalogImage(base64, 'logo');
         const previousKey = storeInfo.logoKey;
         onUpdate({ logo: asset.url, logoKey: asset.key });
-        if (previousKey) void deleteCatalogImage(previousKey).catch(console.warn);
+        if (previousKey && !localOnly) void deleteCatalogImage(previousKey).catch(console.warn);
       } catch (err) {
         console.error("Error compressing logo", err);
       }
@@ -64,10 +65,10 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
     if (file) {
       try {
         const base64 = await compressImage(file);
-        const asset = await uploadCatalogImage(base64, 'header');
+        const asset = localOnly ? { url: base64, key: "" } : await uploadCatalogImage(base64, 'header');
         const previousKey = storeInfo.headerImageKey;
         onUpdate({ headerImage: asset.url, headerImageKey: asset.key, headerMode: 'image' });
-        if (previousKey) void deleteCatalogImage(previousKey).catch(console.warn);
+        if (previousKey && !localOnly) void deleteCatalogImage(previousKey).catch(console.warn);
       } catch (err) {
         console.error("Error compressing header image", err);
       }
@@ -85,10 +86,10 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
         maxHeight: 2264,
         quality: 0.82,
       });
-      const asset = await uploadCatalogImage(base64, 'cover');
+      const asset = localOnly ? { url: base64, key: "" } : await uploadCatalogImage(base64, 'cover');
       const previousKey = storeInfo.coverImageKey;
       onUpdate({ coverImage: asset.url, coverImageKey: asset.key });
-      if (previousKey) void deleteCatalogImage(previousKey).catch(console.warn);
+      if (previousKey && !localOnly) void deleteCatalogImage(previousKey).catch(console.warn);
     } catch (err) {
       console.error("Error compressing cover image", err);
     } finally {
@@ -349,7 +350,7 @@ export const StoreForm: React.FC<StoreFormProps> = ({ storeInfo, onUpdate, canCu
             {storeInfo.coverImage && (
               <button
                 type="button"
-                onClick={() => { const key = storeInfo.coverImageKey; onUpdate({ coverImage: "", coverImageKey: "" }); if (key) void deleteCatalogImage(key).catch(console.warn); }}
+                onClick={() => { const key = storeInfo.coverImageKey; onUpdate({ coverImage: "", coverImageKey: "" }); if (key && !localOnly) void deleteCatalogImage(key).catch(console.warn); }}
                 className="rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-red-500"
                 title="Quitar portada"
                 aria-label="Quitar portada"

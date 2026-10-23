@@ -53,6 +53,7 @@ interface ProductManagerProps {
   onUpdate: (id: string, updates: Partial<Product>) => void | Promise<boolean>;
   onDownloadPdfAll?: () => void;
   onDownloadPdfByCategory?: (category: string) => void;
+  localOnly?: boolean;
 }
 
 const PRODUCTS_PER_PAGE = 20;
@@ -250,6 +251,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
   onUpdate,
   onDownloadPdfAll,
   onDownloadPdfByCategory,
+  localOnly = false,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -605,7 +607,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
 
     // Commit the Blob first. A product must never point at data that has not
     // completed its IndexedDB transaction.
-    if (formData.image.startsWith("data:image")) {
+    if (formData.image.startsWith("data:image") && !localOnly) {
       try {
         const asset = await uploadCatalogImage(formData.image, "product");
         persistedImage = asset.url;
@@ -659,7 +661,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
     if (editingId) {
       const saved = await onUpdate(editingId, productData as Partial<Product>);
       if (saved === false) {
-        if (persistedImageId && persistedImageId !== previousProduct?.imageId) void deleteCatalogImage(persistedImageId).catch(console.warn);
+        if (!localOnly && persistedImageId && persistedImageId !== previousProduct?.imageId) void deleteCatalogImage(persistedImageId).catch(console.warn);
         window.alert("No fue posible actualizar el producto. Revisa el mensaje de sincronización.");
         return;
       }
@@ -681,7 +683,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         hidden: !!productData.hidden,
       } as Product);
       if (saved === false) {
-        if (persistedImageId) void deleteCatalogImage(persistedImageId).catch(console.warn);
+        if (!localOnly && persistedImageId) void deleteCatalogImage(persistedImageId).catch(console.warn);
         window.alert("No fue posible crear el producto. Revisa el mensaje de sincronización.");
         return;
       }
@@ -691,7 +693,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
       previousProduct?.imageId &&
       previousProduct.imageId !== persistedImageId
     ) {
-      void deleteCatalogImage(previousProduct.imageId).catch(console.warn);
+      if (!localOnly) void deleteCatalogImage(previousProduct.imageId).catch(console.warn);
     }
 
     resetForm();
@@ -1049,7 +1051,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
           };
         }
 
-        const asset = await uploadCatalogImage(dataUrl, "product");
+        const asset = localOnly ? { url: dataUrl, key: "" } : await uploadCatalogImage(dataUrl, "product");
         return {
           product: { ...product, image: asset.url, imageId: asset.key },
           uploadedImageKey: asset.key,
