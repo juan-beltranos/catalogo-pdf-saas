@@ -8,7 +8,7 @@ import { CatalogPreview } from "./components/CatalogPreview.tsx";
 import { ExportButton } from "./components/ExportButton.tsx";
 import { TemplateSelector } from "./components/TemplateSelector.tsx";
 import { ViewMode, TemplateId } from "./types.ts";
-import { Eye, Edit3, LayoutTemplate, LockKeyhole, Package, Sparkles, Store, CheckCircle2, type LucideIcon } from "lucide-react";
+import { Eye, Edit3, LayoutTemplate, LockKeyhole, Package, Sparkles, Store, CheckCircle2, Copy, ExternalLink, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { User } from "@supabase/supabase-js";
 import { useAuth } from "./hooks/useAuth";
@@ -147,6 +147,13 @@ const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
               <Eye className="w-4 h-4" />
               <span className="hidden sm:inline">Previsualizar</span>
             </button>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            {activeCatalog?.status === "active" && <>
+              <a href={`/catalogo/${activeCatalog.id}`} target="_blank" rel="noopener noreferrer" title="Ver catálogo digital" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"><ExternalLink className="h-4 w-4"/><span className="hidden xl:inline">Catálogo digital</span></a>
+              <button type="button" aria-label="Copiar enlace del catálogo digital" title="Copiar enlace" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/catalogo/${activeCatalog.id}`)} className="rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700"><Copy className="h-4 w-4"/></button>
+            </>}
           </div>
 
           {/* <button
