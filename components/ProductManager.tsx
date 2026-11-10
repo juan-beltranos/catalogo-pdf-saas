@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Search,
   Loader2,
+  ChevronDown,
+  SlidersHorizontal,
 } from "lucide-react";
 import { CatalogCurrency, compressImage, formatCurrency } from "../constants";
 import { motion, AnimatePresence } from "framer-motion";
@@ -83,7 +85,6 @@ function SortableCard({
     transition,
     zIndex: isDragging ? 50 : undefined,
     opacity: isDragging ? 0.95 : 1,
-    touchAction: "none",
   };
 
   return (
@@ -1363,17 +1364,19 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
           productos
         </p>
 
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center justify-between gap-1 sm:justify-start">
           <button
             type="button"
             onClick={() => goToPage(safeCurrentPage - 1)}
+            aria-label="Página anterior"
             disabled={safeCurrentPage === 1}
-            className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            className="h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
           >
             <ChevronLeft className="w-4 h-4" />
-            Anterior
+            <span className="hidden sm:inline">Anterior</span>
           </button>
 
+          <span className="text-sm font-medium text-slate-600 sm:hidden">Página {safeCurrentPage} de {totalPages}</span>
           {visiblePages.map((page, index) => {
             const previousPage = visiblePages[index - 1];
             const showDots = previousPage && page - previousPage > 1;
@@ -1381,13 +1384,15 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
             return (
               <React.Fragment key={page}>
                 {showDots && (
-                  <span className="px-2 text-slate-300 text-sm">...</span>
+                  <span className="hidden px-2 text-slate-300 text-sm sm:inline">...</span>
                 )}
 
                 <button
                   type="button"
                   onClick={() => goToPage(page)}
-                  className={`h-9 min-w-9 px-3 rounded-xl text-sm border transition ${page === safeCurrentPage
+                  aria-label={`Página ${page}`}
+                  aria-current={page === safeCurrentPage ? "page" : undefined}
+                  className={`hidden sm:inline-flex items-center justify-center h-11 min-w-11 px-3 rounded-xl text-sm border transition ${page === safeCurrentPage
                     ? "bg-blue-600 text-white border-blue-600"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                     }`}
@@ -1401,10 +1406,11 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
           <button
             type="button"
             onClick={() => goToPage(safeCurrentPage + 1)}
+            aria-label="Página siguiente"
             disabled={safeCurrentPage === totalPages}
-            className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            className="h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
           >
-            Siguiente
+            <span className="hidden sm:inline">Siguiente</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -1413,27 +1419,23 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
   };
 
   return (
-    <div className="space-y-4 mb-24">
+    <div className="min-w-0 space-y-4 mb-24">
       {/* Header */}
       <div className="mb-2 space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold flex items-center gap-2 leading-tight">
             <Package className="w-5 h-5 text-blue-600 flex-shrink-0" />
-            <span>
-              Tus
-              <br className="sm:hidden" /> Productos
-            </span>
+            <span>Tus productos</span>
           </h2>
 
           <div className="flex shrink-0 items-center gap-2">
-            {headerAction}
             <button
               onClick={() => {
                 if (isAdding || isEditing) resetForm();
                 else if (plan.products !== null && products.length >= plan.products) window.alert(`Alcanzaste el límite de ${plan.products} productos del plan ${plan.name}.`);
                 else setIsAdding(true);
               }}
-              className="shrink-0 bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 text-sm"
+              className="min-h-11 shrink-0 bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 text-sm"
             >
               {isAdding || isEditing ? (
                 <><X className="w-4 h-4" /> Cancelar</>
@@ -1445,139 +1447,197 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:max-w-xl">
-          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 sm:px-4 sm:py-3">
             <p className="text-xs font-semibold text-blue-600">Productos</p>
-            <p className="mt-1 text-sm font-bold text-blue-950">
+            <p className="mt-1 text-xs font-bold text-blue-950 sm:text-sm">
               {products.length} usados · {plan.products === null ? "Ilimitados" : `${Math.max(0, plan.products - products.length)} disponibles`}
             </p>
             {plan.products !== null && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, products.length / plan.products * 100)}%` }} /></div>}
           </div>
-          <div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
+          <div className="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2 sm:px-4 sm:py-3">
             <p className="text-xs font-semibold text-violet-600">Categorías</p>
-            <p className="mt-1 text-sm font-bold text-violet-950">
+            <p className="mt-1 text-xs font-bold text-violet-950 sm:text-sm">
               {categories.length} usadas · {plan.categories === null ? "Ilimitadas" : `${Math.max(0, plan.categories - categories.length)} disponibles`}
             </p>
             {plan.categories !== null && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-violet-100"><div className="h-full rounded-full bg-violet-600" style={{ width: `${Math.min(100, categories.length / plan.categories * 100)}%` }} /></div>}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              const prompt = allProductCount
-                ? `¿Eliminar los ${allProductCount} productos?\n\nSe borrarán definitivamente de la base de datos y sus imágenes de R2. Esta acción no se puede deshacer.`
-                : "¿Reintentar la limpieza de todas las imágenes de productos en R2?";
-              if (!window.confirm(prompt)) return;
-              setIsRemovingAll(true);
-              try {
-                const removed = await onRemoveAll();
-                if (removed !== false) {
-                  setCategoryFilter("__ALL__");
-                  setSearchTerm("");
-                  resetForm();
-                }
-              } finally {
-                setIsRemovingAll(false);
-              }
-            }}
-            disabled={isRemovingAll}
-            className="col-span-2 w-full sm:col-span-1 sm:w-auto flex items-center justify-center gap-2 bg-red-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Eliminar definitivamente todos los productos y sus imágenes"
-          >
-            {isRemovingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            <span>{isRemovingAll ? "Eliminando..." : !allProductCount ? "Eliminar todos" : "Eliminar todos"}</span>
-          </button>
+        {headerAction && <div className="flex flex-wrap gap-2">{headerAction}</div>}
 
-          <button
-            onClick={() => plan.excel ? excelInputRef.current?.click() : window.alert("La importación por Excel está disponible en Premium.")}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100"
-            title="Importar productos desde Excel (.xlsx)"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Importar Excel{!plan.excel ? " · Premium" : ""}</span>
-          </button>
+        <details className="group/tools rounded-2xl border border-slate-200 bg-white">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 [&::-webkit-details-marker]:hidden">
+            <SlidersHorizontal className="h-4 w-4" />
+            Herramientas de productos
+            <ChevronDown className="ml-auto h-4 w-4 transition-transform group-open/tools:rotate-180" />
+          </summary>
+          <div className="space-y-3 border-t border-slate-100 p-3">
+            <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:flex sm:flex-wrap sm:items-center">
 
-          <button
-            onClick={() => plan.excel ? handleExportExcel() : window.alert("La exportación a Excel está disponible en Premium.")}
-            disabled={!products.length}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Exportar todos los productos a Excel"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Exportar Excel{!plan.excel ? " · Premium" : ""}</span>
-          </button>
 
-          <button
-            onClick={handleAutoOrganizeByCategory}
-            disabled={!products.length}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-violet-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-violet-700 transition-colors shadow-lg shadow-violet-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Agrupar todos los productos por categoría automáticamente"
-          >
-            <Tag className="w-4 h-4" />
-            <span>Organizar por categoría</span>
-          </button>
+              <button
+                onClick={() => plan.excel ? excelInputRef.current?.click() : window.alert("La importación por Excel está disponible en Premium.")}
+                className="min-h-11 w-full sm:w-auto flex items-center justify-center gap-2 border border-slate-200 bg-white text-slate-700 px-3 py-2 rounded-xl text-sm hover:bg-slate-50 transition-colors"
+                title="Importar productos desde Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Importar Excel{!plan.excel ? " · Premium" : ""}</span>
+              </button>
 
-          <input
-            ref={excelInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={handleExcelFileChange}
-          />
+              <button
+                onClick={() => plan.excel ? handleExportExcel() : window.alert("La exportación a Excel está disponible en Premium.")}
+                disabled={!products.length}
+                className="min-h-11 w-full sm:w-auto flex items-center justify-center gap-2 border border-slate-200 bg-white text-slate-700 px-3 py-2 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Exportar todos los productos a Excel"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Exportar Excel{!plan.excel ? " · Premium" : ""}</span>
+              </button>
 
-          {(onDownloadPdfAll || onDownloadPdfByCategory) && (
-            <div className="col-span-2 hidden sm:flex items-center gap-2">
-              {onDownloadPdfAll && (
-                <button
-                  onClick={onDownloadPdfAll}
-                  className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm hover:bg-slate-800"
-                >
-                  PDF (Todo)
-                </button>
-              )}
+              <button
+                onClick={handleAutoOrganizeByCategory}
+                disabled={!products.length}
+                className="min-h-11 w-full sm:w-auto flex items-center justify-center gap-2 border border-slate-200 bg-white text-slate-700 px-3 py-2 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Agrupar todos los productos por categoría automáticamente"
+              >
+                <Tag className="w-4 h-4" />
+                <span>Organizar por categoría</span>
+              </button>
 
-              {onDownloadPdfByCategory && (
-                <div className="relative">
-                  <select
-                    className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                  >
-                    <option value="__ALL__">Todas</option>
+              <button
+                type="button"
+                onClick={async () => {
+                  const prompt = allProductCount
+                    ? `¿Eliminar los ${allProductCount} productos?\n\nSe borrarán definitivamente de la base de datos y sus imágenes de R2. Esta acción no se puede deshacer.`
+                    : "¿Reintentar la limpieza de todas las imágenes de productos en R2?";
+                  if (!window.confirm(prompt)) return;
+                  setIsRemovingAll(true);
+                  try {
+                    const removed = await onRemoveAll();
+                    if (removed !== false) {
+                      setCategoryFilter("__ALL__");
+                      setSearchTerm("");
+                      resetForm();
+                    }
+                  } finally {
+                    setIsRemovingAll(false);
+                  }
+                }}
+                disabled={isRemovingAll}
+                className="order-last min-h-11 w-full min-[380px]:col-span-2 sm:w-auto flex items-center justify-center gap-2 border border-red-200 bg-white text-red-600 px-3 py-2 rounded-xl text-sm hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Eliminar definitivamente todos los productos y sus imágenes"
+              >
+                {isRemovingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>{isRemovingAll ? "Eliminando..." : !allProductCount ? "Eliminar todos" : "Eliminar todos"}</span>
+              </button>
 
-                    {categories.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={handleExcelFileChange}
+              />
 
-                  <button
-                    disabled={categoryFilter === "__ALL__"}
-                    onClick={() => {
-                      if (categoryFilter !== "__ALL__") {
-                        onDownloadPdfByCategory(categoryFilter);
-                      }
-                    }}
-                    className="ml-2 bg-blue-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    PDF (Categoría)
-                  </button>
+              {(onDownloadPdfAll || onDownloadPdfByCategory) && (
+                <div className="col-span-2 hidden sm:flex items-center gap-2">
+                  {onDownloadPdfAll && (
+                    <button
+                      onClick={onDownloadPdfAll}
+                      className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm hover:bg-slate-800"
+                    >
+                      PDF (Todo)
+                    </button>
+                  )}
+
+                  {onDownloadPdfByCategory && (
+                    <div className="relative">
+                      <select
+                        className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm"
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                      >
+                        <option value="__ALL__">Todas</option>
+
+                        {categories.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        disabled={categoryFilter === "__ALL__"}
+                        onClick={() => {
+                          if (categoryFilter !== "__ALL__") {
+                            onDownloadPdfByCategory(categoryFilter);
+                          }
+                        }}
+                        className="ml-2 bg-blue-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        PDF (Categoría)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
+            {products.length > PRODUCTS_PER_PAGE && (
+              <div className={`flex flex-col gap-3 rounded-2xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
+                showAllForOrdering
+                  ? "border-blue-300 bg-blue-50"
+                  : "border-slate-200 bg-white"
+              }`}>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {showAllForOrdering
+                      ? `Ordenando los ${totalProducts} productos en una sola vista`
+                      : "¿Necesitas mover productos entre páginas?"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {showAllForOrdering
+                      ? "Arrastra cualquier producto a la posición que quieras. El orden se guarda automáticamente."
+                      : "Muestra todos los productos juntos para ordenarlos libremente."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showAllForOrdering) {
+                      setShowAllForOrdering(false);
+                      setCurrentPage(1);
+                      return;
+                    }
+
+                    setCategoryFilter("__ALL__");
+                    setSearchTerm("");
+                    setCurrentPage(1);
+                    setShowAllForOrdering(true);
+                  }}
+                  className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${
+                    showAllForOrdering
+                      ? "border border-blue-200 bg-white text-blue-700 hover:bg-blue-100"
+                      : "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+                  }`}
+                >
+                  <GripVertical className="h-4 w-4" />
+                  {showAllForOrdering ? "Volver a la paginación" : `Ordenar todos (${products.length})`}
+                </button>
+              </div>
+            )}
+
+          </div>
+        </details>
       </div>
 
       {/* Filtro de categoría + buscador */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="order-2 flex min-h-11 min-w-0 items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 sm:order-1">
           <Tag className="w-4 h-4 text-slate-500" />
 
           <select
-            className="outline-none text-sm bg-transparent"
+            aria-label="Filtrar por categoría"
+            className="min-w-0 w-full outline-none text-base sm:text-sm bg-transparent"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             disabled={!!searchTerm.trim()}
@@ -1597,15 +1657,16 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
           </select>
         </div>
 
-        <div className="flex-1 min-w-[240px] flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+        <div className="order-1 flex min-h-11 min-w-0 flex-1 items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 sm:order-2">
           <Search className="w-4 h-4 text-slate-400" />
 
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre, SKU, categoría, descripción o precio..."
-            className="w-full outline-none text-sm bg-transparent"
+            aria-label="Buscar productos por nombre, SKU, categoría, descripción o precio"
+            placeholder="Buscar productos o SKU…"
+            className="min-w-0 w-full outline-none text-base sm:text-sm bg-transparent"
           />
 
           {searchTerm.trim() && (
@@ -1622,7 +1683,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
 
         {categoryFilter !== "__ALL__" && !searchTerm.trim() && (
           <button
-            className="text-sm text-slate-600 hover:underline"
+            className="order-3 min-h-11 text-left text-sm text-slate-600 hover:underline"
             onClick={() => setCategoryFilter("__ALL__")}
           >
             Limpiar filtro
@@ -1630,7 +1691,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         )}
 
         {searchTerm.trim() && (
-          <p className="w-full text-xs text-blue-600">
+          <p className="order-3 w-full text-xs text-blue-600">
             Buscando en todos los productos, sin importar la categoría.
           </p>
         )}
@@ -2273,50 +2334,6 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
         )}
       </AnimatePresence>
 
-      {products.length > PRODUCTS_PER_PAGE && (
-        <div className={`flex flex-col gap-3 rounded-2xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
-          showAllForOrdering
-            ? "border-blue-300 bg-blue-50"
-            : "border-slate-200 bg-white"
-        }`}>
-          <div>
-            <p className="text-sm font-semibold text-slate-800">
-              {showAllForOrdering
-                ? `Ordenando los ${totalProducts} productos en una sola vista`
-                : "¿Necesitas mover productos entre páginas?"}
-            </p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              {showAllForOrdering
-                ? "Arrastra cualquier producto a la posición que quieras. El orden se guarda automáticamente."
-                : "Muestra todos los productos juntos para ordenarlos libremente."}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (showAllForOrdering) {
-                setShowAllForOrdering(false);
-                setCurrentPage(1);
-                return;
-              }
-
-              setCategoryFilter("__ALL__");
-              setSearchTerm("");
-              setCurrentPage(1);
-              setShowAllForOrdering(true);
-            }}
-            className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${
-              showAllForOrdering
-                ? "border border-blue-200 bg-white text-blue-700 hover:bg-blue-100"
-                : "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
-            }`}
-          >
-            <GripVertical className="h-4 w-4" />
-            {showAllForOrdering ? "Volver a la paginación" : `Ordenar todos (${products.length})`}
-          </button>
-        </div>
-      )}
-
       {renderPagination()}
 
       {/* Grid de productos */}
@@ -2338,7 +2355,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
             </p>
           )}
 
-          <div className="mx-auto grid w-[90%] grid-cols-1 gap-4 sm:w-full sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="mx-auto grid w-full grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <AnimatePresence mode="popLayout">
               {displayedProducts.map((product) => {
                 const originalPrice =
@@ -2359,7 +2376,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.98 }}
                         transition={{ duration: 0.15 }}
-                        className={`bg-white rounded-2xl p-4 ${product.hidden ? "opacity-40 grayscale" : ""
+                        className={`bg-white rounded-2xl p-3 pt-14 sm:p-4 sm:pt-14 ${product.hidden ? "opacity-40 grayscale" : ""
                           } shadow-sm border group relative transition-all ${editingId === product.id
                             ? "border-blue-500 ring-2 ring-blue-50"
                             : "border-slate-100"
@@ -2368,7 +2385,9 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                         <button
                           type="button"
                           title="Arrastra para ordenar"
-                          className={`absolute top-2 left-2 z-10 p-2 rounded-full
+                          aria-label={`Ordenar ${product.name}`}
+                          style={{ touchAction: "none" }}
+                          className={`absolute top-2 left-2 z-10 p-3 rounded-full
                             bg-white/90 backdrop-blur border
                             text-slate-500 hover:text-slate-700 hover:bg-slate-100
                             cursor-grab active:cursor-grabbing transition
@@ -2382,10 +2401,11 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                           <GripVertical className="w-4 h-4" />
                         </button>
 
-                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <div className="absolute top-2 right-2 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity z-10">
                           <button
                             onClick={() => handleOpenEdit(product)}
-                            className="bg-blue-100 text-blue-600 p-2 rounded-full shadow-sm border border-blue-200 hover:bg-blue-200"
+                            aria-label={`Editar ${product.name}`}
+                            className="bg-blue-50 text-blue-600 p-3 rounded-full shadow-sm border border-blue-200 hover:bg-blue-200"
                             title="Editar"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -2393,7 +2413,8 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
 
                           <button
                             onClick={() => onRemove(product.id)}
-                            className="bg-red-100 text-red-600 p-2 rounded-full shadow-sm border border-red-200 hover:bg-red-200"
+                            aria-label={`Eliminar ${product.name}`}
+                            className="bg-white text-red-600 p-3 rounded-full shadow-sm border border-red-200 hover:bg-red-200"
                             title="Eliminar"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -2432,7 +2453,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-slate-900 truncate">
+                            <h3 className="font-bold text-sm leading-snug text-slate-900 line-clamp-2 break-words">
                               {product.name}
                             </h3>
 
@@ -2446,7 +2467,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({
                             )}
 
                             {product.category?.trim() ? (
-                              <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                              <div className="mt-1 inline-flex max-w-full items-center gap-1 text-[11px] text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
                                 <Tag className="w-3 h-3" />
                                 <span className="truncate">{product.category}</span>
                               </div>
