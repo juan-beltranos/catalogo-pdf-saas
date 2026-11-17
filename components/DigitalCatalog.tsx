@@ -55,10 +55,26 @@ export function DigitalCatalog({ catalogName, storeInfo, products }: { catalogNa
   const checkout = () => {
     const phone = normalizeWaNumber(storeInfo.whatsapp || "", storeInfo.whatsappCountryCode);
     if (!phone || !items.length) return;
-    const lines = items.map(({ product, qty }) => `• ${product.name} x${qty}${showPrices ? ` — ${formatCurrency(product.price * qty, currency)}` : ""}`);
-    const text = [`Hola, quiero hacer este pedido de ${catalogName}:`, ...lines, ...(showPrices ? [`Total: ${formatCurrency(total, currency)}`] : []),
-      customerName.trim() ? `Nombre: ${customerName.trim()}` : "", customerAddress.trim() ? `Dirección: ${customerAddress.trim()}` : "",
-      customerNotes.trim() ? `Notas: ${customerNotes.trim()}` : ""].filter(Boolean).join("\n");
+    const storeName = storeInfo.name?.trim() || catalogName;
+    const productLines = items.flatMap(({ product, qty }, index) => [
+      `${index + 1}. *${product.name}*`,
+      `   Cantidad: ${qty}${showPrices ? ` · ${formatCurrency(product.price * qty, currency)}` : ""}`,
+    ]);
+    const customerLines = [
+      customerName.trim() ? `Nombre: ${customerName.trim()}` : "",
+      customerAddress.trim() ? `Entrega: ${customerAddress.trim()}` : "",
+      customerNotes.trim() ? `Notas: ${customerNotes.trim()}` : "",
+    ].filter(Boolean);
+    const text = [
+      `*NUEVO PEDIDO*`,
+      `Hola, quiero hacer un pedido en *${storeName}*.`,
+      `*PRODUCTOS*`,
+      ...productLines,
+      ...(showPrices ? ["", `*TOTAL: ${formatCurrency(total, currency)}*`] : []),
+      ...(customerLines.length ? ["", "*DATOS DEL PEDIDO*", ...customerLines] : []),
+      "",
+      "Gracias. Quedo atento a la confirmación.",
+    ].join("\n");
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   };
   const addFromDetail = () => {
