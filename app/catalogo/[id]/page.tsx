@@ -23,7 +23,7 @@ export default async function DigitalCatalogPage({ params }: { params: Promise<{
   const [{ data: business, error: businessError }, { data: links, error: productsError }] = await Promise.all([
     db.from("businesses").select("name,whatsapp,whatsapp_country_code,facebook,instagram,additional_info,color,template_id,logo_url,header_image_url,cover_image_url,settings")
       .eq("id", catalog.business_id).maybeSingle(),
-    db.from("catalog_products").select("sort_order,price_override,description_override,hidden_override,products(id,name,sku,price,original_price,description,category,image_url,sort_order,featured,hidden,quantity)")
+    db.from("catalog_products").select("sort_order,price_override,description_override,hidden_override,products(id,name,sku,price,original_price,description,category,categories,image_url,sort_order,featured,hidden,quantity)")
       .eq("catalog_id", id).eq("included", true).order("sort_order"),
   ]);
   if (businessError || productsError) {
@@ -43,7 +43,7 @@ export default async function DigitalCatalogPage({ params }: { params: Promise<{
     if (!row) return [];
     return [{ id: row.id, name: row.name, sku: row.sku || "", price: link.price_override == null ? Number(row.price) : Number(link.price_override),
       originalPrice: row.original_price == null ? undefined : Number(row.original_price), description: link.description_override ?? row.description ?? "",
-      category: row.category || "", image: row.image_url || "", order: Number(catalog.is_primary ? row.sort_order : link.sort_order) || 0, featured: row.featured,
+      category: row.category || "", categories: row.categories,  image: row.image_url || "", order: Number(catalog.is_primary ? row.sort_order : link.sort_order) || 0, featured: row.featured,
       hidden: link.hidden_override ?? row.hidden, quantity: row.quantity == null ? undefined : Number(row.quantity) }];
   }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   return <DigitalCatalog catalogName={catalog.name} storeInfo={storeInfo} products={products} />;

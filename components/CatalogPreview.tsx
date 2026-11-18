@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { getProductCategories } from "../helper/productCategories";
 import { Product, StoreInfo } from "../types";
 import { formatCurrency } from "../constants";
 import { Phone, Facebook, Instagram, MessageCircle } from "lucide-react";
@@ -413,6 +414,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
         className={`${theme.card} product-pdf`}
         style={{ textDecoration: "none" }}
         data-category={(product.category || "Sin categoría").trim()}
+        data-categories={JSON.stringify(getProductCategories(product))}
         data-pdf-link="product"
         data-product-id={product.id}
         data-product-name={product.name}
@@ -443,7 +445,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
               </div>
             )}
 
-            {product.category && (
+            {getProductCategories(product).length > 0 && (
               <div
                 data-category-badge="true"
                 className={theme.categoryBadge}
@@ -452,7 +454,7 @@ export const CatalogPreview: React.FC<CatalogPreviewProps> = ({
                 <span
                   style={{ display: "block", lineHeight: 1, paddingTop: "1px" }}
                 >
-                  {product.category}
+                  {getProductCategories(product).join(" · ")}
                 </span>
               </div>
             )}

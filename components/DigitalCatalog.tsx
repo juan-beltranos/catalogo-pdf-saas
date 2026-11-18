@@ -1,4 +1,5 @@
 "use client";
+import { getProductCategories, hasCategory } from "../helper/productCategories";
 
 import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "dompurify";
@@ -24,12 +25,12 @@ export function DigitalCatalog({ catalogName, storeInfo, products }: { catalogNa
   const primary = storeInfo.color || "#2563eb";
   const showPrices = storeInfo.showPrices !== false;
   const visible = [...products].filter((product) => !product.hidden).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const categories = [...new Set(visible.map((product) => product.category?.trim()).filter(Boolean))];
+  const categories = [...new Set(visible.flatMap(getProductCategories))];
   const query = search.trim().toLocaleLowerCase("es");
   const filtered = visible.filter((product) => {
     // Search spans the whole catalog, even when a category tab was selected.
-    const matchesCategory = !!query || category === "Todos" || product.category?.trim() === category;
-    const matchesSearch = !query || [product.name, product.sku, product.category, plainDescription(product.description || "")]
+    const matchesCategory = !!query || category === "Todos" || hasCategory(product, category);
+    const matchesSearch = !query || [product.name, product.sku, ...getProductCategories(product), plainDescription(product.description || "")]
       .some((value) => String(value || "").toLocaleLowerCase("es").includes(query));
     return matchesCategory && matchesSearch;
   });

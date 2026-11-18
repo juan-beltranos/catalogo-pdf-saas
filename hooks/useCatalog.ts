@@ -9,6 +9,8 @@ import { getPlan, PlanLimits } from "../lib/plans";
 import { Entitlements, FeatureOverride, getEffectiveEntitlements } from "../lib/entitlements";
 import { DEFAULT_WA_COUNTRY, isWaCountryCode } from "@/helper/social";
 
+import { categoryFields, categoryCount, getProductCategories } from "../helper/productCategories";
+
 const DEFAULT_STORE: StoreInfo = { name: "", whatsapp: "", color: "#3b82f6", templateId: "minimalist", whatsappCountryCode: DEFAULT_WA_COUNTRY, headerMode: "color", pdfProductsPerPage: 4, showPrices: true };
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const errorMessage = (cause: unknown) => {
@@ -38,12 +40,12 @@ const storeToBusiness = (store: StoreInfo) => ({
 const rowToProduct = (row: any): Product => ({ id: row.id, name: row.name, sku: row.sku || "", price: Number(row.price),
   wholesalePrice: row.wholesale_price == null ? undefined : Number(row.wholesale_price),
   originalPrice: row.original_price == null ? undefined : Number(row.original_price), description: row.description || "",
-  category: row.category || "", image: row.image_url || "", imageId: row.image_key || "", order: row.sort_order,
+  ...categoryFields(getProductCategories(row)), image: row.image_url || "", imageId: row.image_key || "", order: row.sort_order,
   featured: row.featured, hidden: row.hidden, quantity: row.quantity == null ? undefined : row.quantity });
 
 const productToRow = (p: Product, businessId: string) => ({ id: p.id, business_id: businessId, name: p.name,
   sku: p.sku || "", price: p.price, wholesale_price: p.wholesalePrice ?? null, original_price: p.originalPrice ?? null, description: p.description || "",
-  category: p.category || "", image_url: p.image || null, image_key: p.imageId || null, sort_order: p.order ?? 0,
+  ...categoryFields(getProductCategories(p)), image_url: p.image || null, image_key: p.imageId || null, sort_order: p.order ?? 0,
   featured: !!p.featured, hidden: !!p.hidden, quantity: p.quantity ?? null });
 
 const catalogAudience = (settings: Record<string, unknown> | null | undefined): CatalogAudience =>
@@ -292,11 +294,9 @@ export const useCatalog = (user: User) => {
     if (!businessId || !supabase) return false;
     if (isActiveCatalogReadOnly) { setError("Este catálogo está disponible en modo lectura."); return false; }
     if (plan.products !== null && products.length >= plan.products) { setError(`El plan ${plan.name} admite hasta ${plan.products} productos.`); return false; }
-    const categories = new Set(products.map((p) => p.category?.trim().toLowerCase()).filter(Boolean));
-    const nextCategory = input.category?.trim().toLowerCase();
-    if (nextCategory && !categories.has(nextCategory) && plan.categories !== null && categories.size >= plan.categories) { setError(`El plan ${plan.name} admite hasta ${plan.categories} categorías.`); return false; }
+    if (plan.categories !== null && categoryCount([...libraryProducts, input]) > plan.categories) { setError(`El plan ${plan.name} admite hasta ${plan.categories} categorías.`); return false; }
     if (input.image && plan.images !== null && products.filter((p) => !!p.image).length >= plan.images) { setError(`El plan ${plan.name} admite hasta ${plan.images} productos con imagen.`); return false; }
-    const product = { ...input, id: isUuid(input.id) ? input.id : crypto.randomUUID() };
+    const product = { ...input, ...categoryFields(getProductCategories(input)), id: isUuid(input.id) ? input.id : crypto.randomUUID() };
     setProducts((previous) => [product, ...previous]);
     setLibraryProducts((previous) => [product, ...previous]);
     const row = productToRow(product, businessId);
@@ -324,17 +324,15 @@ export const useCatalog = (user: User) => {
     }
     setError(null);
     return true;
-  }, [activeCatalogId, businessId, catalogs, isActiveCatalogReadOnly, plan, products]);
+  }, [activeCatalogId, businessId, catalogs, isActiveCatalogReadOnly, plan, products, libraryProducts]);
 
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>): Promise<boolean> => {
     if (!businessId || !supabase) return false;
     if (isActiveCatalogReadOnly) { setError("Este catálogo está disponible en modo lectura."); return false; }
     const current = products.find((p) => p.id === id);
     if (!current) return false;
-    const next = { ...current, ...updates };
-    const categories = new Set(products.filter((p) => p.id !== id).map((p) => p.category?.trim().toLowerCase()).filter(Boolean));
-    const nextCategory = next.category?.trim().toLowerCase();
-    if (nextCategory && !categories.has(nextCategory) && plan.categories !== null && categories.size >= plan.categories) { setError(`El plan ${plan.name} admite hasta ${plan.categories} categorías.`); return false; }
+    const next = { ...current, ...updates, ...categoryFields(getProductCategories(updates.categories !== undefined ? updates : updates.category !== undefined ? { category: updates.category } : current)) };
+    if (plan.categories !== null && categoryCount([...libraryProducts.filter((p) => p.id !== id), next]) > plan.categories) { setError(`El plan ${plan.name} admite hasta ${plan.categories} categorías.`); return false; }
     if (next.image && plan.images !== null && products.filter((p) => p.id !== id && !!p.image).length >= plan.images) { setError(`El plan ${plan.name} admite hasta ${plan.images} productos con imagen.`); return false; }
     setProducts((previous) => previous.map((p) => p.id === id ? next : p));
     const activeCatalog = catalogs.find((catalog) => catalog.id === activeCatalogId);
@@ -344,6 +342,12 @@ export const useCatalog = (user: User) => {
       : await supabase.from("products").update(productToRow(next, businessId)).eq("id", id).select("id").single();
     const saveError = saveResult.error;
     if (saveError) { setProducts((previous) => previous.map((p) => p.id === id ? current : p)); setError(saveError.message); return false; }
+    if (activeCatalog && !activeCatalog.isPrimary && (updates.categories !== undefined || updates.category !== undefined)) {
+      const fields = categoryFields(getProductCategories(next));
+      const { error: categoryError } = await supabase.from("products").update(fields).eq("id", id).select("id").single();
+      if (categoryError) { setProducts((previous) => previous.map((p) => p.id === id ? current : p)); setError(categoryError.message); return false; }
+      setLibraryProducts((previous) => previous.map((product) => product.id === id ? { ...product, ...fields } : product));
+    }
     if (!activeCatalog || activeCatalog.isPrimary) setLibraryProducts((previous) => previous.map((product) => product.id === id ? next : product));
     setError(null);
     return true;
