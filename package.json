@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
+    "test:categories": "tsx scripts/test-product-categories.ts",
     "configure:r2-cors": "node scripts/configure-r2-cors.mjs",
     "test:crud": "node scripts/test-products-crud.mjs",
     "test:plans": "node scripts/test-plan-limits.mjs",

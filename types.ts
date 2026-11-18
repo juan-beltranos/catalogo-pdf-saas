@@ -8,6 +8,7 @@ export interface Product {
   wholesalePrice?: number;
   description: string;
   category?: string;
+  categories?: string[];
   image?: string; // base64 o url
   imageId?: string; // apunta a IndexedDB
   imageUnavailable?: boolean; // referencia heredada que no puede reconstruirse

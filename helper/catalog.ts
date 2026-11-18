@@ -1,15 +1,18 @@
+import { getProductCategories } from "./productCategories";
 import { Product } from "../types";
 
 export const normalizeCategory = (p: Product) =>
-    (p.category || "Sin categoría").trim() || "Sin categoría";
+    getProductCategories(p)[0] || "Sin categoría";
 
 export const groupByCategory = (products: Product[]) => {
     const map = new Map<string, Product[]>();
 
     for (const p of products) {
-        const key = normalizeCategory(p);
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(p);
+        const categories = getProductCategories(p);
+        for (const key of categories.length ? categories : ["Sin categoría"]) {
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(p);
+        }
     }
 
     // ordenar productos dentro de cada categoría (opcional)

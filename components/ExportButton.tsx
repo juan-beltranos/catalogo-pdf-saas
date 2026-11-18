@@ -613,10 +613,11 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         (
           Array.from(clone.querySelectorAll(".product-pdf")) as HTMLElement[]
         ).forEach((card) => {
-          const cat = (
-            (card.dataset.category || "").trim() || "Sin categoría"
-          ).toLowerCase();
-          if (cat !== wanted) card.remove();
+          const categories: string[] = card.dataset.categories
+            ? JSON.parse(card.dataset.categories)
+            : [card.dataset.category || ""];
+          const names = categories.length ? categories : ["Sin categoría"];
+          if (!names.some((name) => name.trim().toLowerCase() === wanted)) card.remove();
         });
       }
 
