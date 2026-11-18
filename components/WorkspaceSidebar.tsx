@@ -13,6 +13,7 @@ import {
   PlayCircle,
   Sparkles,
   Store,
+  ShieldCheck,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -24,7 +25,8 @@ export type WorkspaceModule =
   | "design"
   | "store"
   | "tools"
-  | "plan";
+  | "plan"
+  | "admin";
 
 interface NavigationItem {
   id: WorkspaceModule;
@@ -41,6 +43,7 @@ interface WorkspaceSidebarProps {
   toolsEnabled: boolean;
   catalogsEnabled: boolean;
   catalogName?: string;
+  adminEnabled?: boolean;
 }
 
 export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
@@ -50,6 +53,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   toolsEnabled,
   catalogsEnabled,
   catalogName,
+  adminEnabled = false,
 }) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
@@ -61,6 +65,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
     { id: "tools", label: "Herramientas", description: "Optimiza y comparte", icon: Sparkles, locked: !toolsEnabled },
     { id: "plan", label: "Plan y suscripción", description: "Uso y beneficios", icon: CreditCard },
   ];
+  if (adminEnabled) allItems.push({ id: "admin", label: "Administración", description: "Tiendas y versiones", icon: ShieldCheck });
   const items = allItems.filter((item) => catalogsEnabled || item.id !== "catalogs");
   const activeItem = items.find((item) => item.id === activeModule) ?? items[0];
 

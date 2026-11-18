@@ -12,6 +12,7 @@
     "configure:r2-cors": "node scripts/configure-r2-cors.mjs",
     "test:crud": "node scripts/test-products-crud.mjs",
     "test:plans": "node scripts/test-plan-limits.mjs",
+    "test:admin": "node scripts/test-admin-stores.mjs",
     "test:integration": "node scripts/test-integration.mjs",
     "test:subscription": "node scripts/test-subscription-lifecycle.mjs",
     "test:entitlements": "tsx scripts/test-entitlements.mjs"
