@@ -2,6 +2,7 @@ import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObject
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminUser } from "../../../lib/admin";
 
 export const runtime = "nodejs";
 
@@ -140,10 +141,10 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Sesión no válida" }, { status: 401 });
     const sourceUrl = request.nextUrl.searchParams.get("url") || "";
     const publicBaseUrl = required("R2_PUBLIC_BASE_URL").replace(/\/+$/, "");
-    const expectedPrefix = `${publicBaseUrl}/${user.id}/`;
+    const expectedPrefix = isAdminUser(user) ? `${publicBaseUrl}/` : `${publicBaseUrl}/${user.id}/`;
     if (!sourceUrl.startsWith(expectedPrefix)) return NextResponse.json({ error: "Archivo no autorizado" }, { status: 403 });
     const objectKey = decodeURIComponent(sourceUrl.slice(publicBaseUrl.length + 1));
-    if (!objectKey.startsWith(`${user.id}/`) || objectKey.includes("..")) return NextResponse.json({ error: "Ruta inválida" }, { status: 400 });
+    if ((!isAdminUser(user) && !objectKey.startsWith(`${user.id}/`)) || objectKey.includes("..")) return NextResponse.json({ error: "Ruta inválida" }, { status: 400 });
 
     const result = await r2().send(new GetObjectCommand({ Bucket: required("R2_BUCKET_NAME"), Key: objectKey }));
     if (!result.Body) return NextResponse.json({ error: "Archivo vacío" }, { status: 404 });

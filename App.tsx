@@ -22,6 +22,8 @@ import { CatalogLibrary } from "./components/CatalogLibrary";
 import { WorkspaceSidebar, type WorkspaceModule } from "./components/WorkspaceSidebar";
 import { getPlan } from "./lib/plans";
 import { getCurrencyForWaCountry } from "./helper/social";
+import { isAdminUser } from "./lib/admin";
+import { AdminStores } from "./components/AdminStores";
 
 const FOOTER_BANNER_URL =
   "https://firebasestorage.googleapis.com/v0/b/sistema-catalogo-digitales.firebasestorage.app/o/banner-catalogo-digital.jpg?alt=media&token=c874b38a-b8d3-457c-8b3e-50af5c97eae0";
@@ -176,8 +178,9 @@ const CatalogApp: React.FC<{ user: User }> = ({ user }) => {
         <AnimatePresence mode="wait">
           {viewMode === "editor" ? (
             <motion.div key="editor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="lg:flex lg:items-start lg:gap-6">
-              <WorkspaceSidebar activeModule={activeModule} onChange={setActiveModule} planName={plan.name} toolsEnabled={entitlements.canUsePremiumProductTools} catalogsEnabled={entitlements.subscriptionActive} catalogName={entitlements.subscriptionActive ? activeCatalog?.name : "Catálogo principal"} />
+              <WorkspaceSidebar activeModule={activeModule} onChange={setActiveModule} planName={plan.name} toolsEnabled={entitlements.canUsePremiumProductTools} catalogsEnabled={entitlements.subscriptionActive} catalogName={entitlements.subscriptionActive ? activeCatalog?.name : "Catálogo principal"} adminEnabled={isAdminUser(user)} />
               <div className="min-w-0 flex-1">
+                {activeModule === "admin" && isAdminUser(user) && <AdminStores />}
                 {activeCatalog?.readOnly && <div role="status" className="mb-5 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><LockKeyhole className="h-4 w-4 shrink-0" />Este catálogo está en modo lectura. Reactiva la suscripción para modificarlo.</div>}
                 {activeModule === "catalogs" && <ModulePanel icon={Package} title="Mis catálogos" description="Administra tus ediciones y selecciona el catálogo en el que quieres trabajar."><CatalogLibrary catalogs={catalogs} activeCatalogId={activeCatalogId} subscriptionActive={entitlements.subscriptionActive} libraryProducts={libraryProducts} onOpen={(id) => void openCatalog(id)} onPreview={handleCatalogPreview} onCreate={createCatalog} onDuplicate={duplicateCatalog} onArchive={archiveCatalog} onRename={renameCatalog} onDelete={deleteCatalog} onAddProducts={addLibraryProductsToCatalog} /></ModulePanel>}
                 {activeModule === "products" && <ProductManager products={products} allProductCount={libraryProducts.length} plan={plan} currency={currency} onAdd={addProduct} onRemove={removeProduct} onRemoveAll={removeAllProducts} onUpdate={updateProduct} headerAction={<button type="button" onClick={() => setActiveModule("design")} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"><LayoutTemplate className="h-4 w-4" />Diseño del PDF</button>} />}
